@@ -1,0 +1,22 @@
+# Node.js dependencies - will be installed during build
+node_modules/
+.pnpm/
+.pnpm-store/
+
+# Lock files - will be regenerated
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# Build cache
+.vite/
+.cache/
+dist/
+
+# Development files
+.DS_Store
+*.log
+.env.local
+
+# Source maps in production
+*.map 

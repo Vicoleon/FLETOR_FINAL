@@ -1,0 +1,39 @@
+# Node.js dependencies (will be installed during build)
+node_modules/
+*/node_modules/
+**/node_modules/
+
+# Package manager lock files (will be regenerated)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+.pnpm-store/
+.pnpm/
+
+# Build artifacts that will be regenerated
+dist/
+build/
+.vite/
+.cache/
+
+# Development files
+.DS_Store
+*.log
+.env.local
+.env.development
+
+# Git files
+.git/
+.gitignore
+
+# Documentation and development files
+README.md
+docs/
+*.md
+!DEPLOYMENT.md
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+.temp/ 
