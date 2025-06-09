@@ -11,7 +11,7 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: PORT
-        value: 5000
+        value: 5001
     # Optionally add a PostgreSQL database
     # databases:
     #   - name: odontotravel-db
