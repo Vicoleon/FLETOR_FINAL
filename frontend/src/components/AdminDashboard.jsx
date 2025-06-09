@@ -1355,7 +1355,7 @@ export default function AdminDashboard({ onShowProfile }) {
                               <h4 className="font-medium text-sm mb-3">Popular Destinations</h4>
                               <div className="space-y-2">
                                 <div className="flex justify-between items-center">
-                                  <span className="text-sm">Mexico City</span>
+                                  <span className="text-sm">Costa Rica City</span>
                                   <span className="font-medium">32%</span>
                                 </div>
                                 <div className="flex justify-between items-center">

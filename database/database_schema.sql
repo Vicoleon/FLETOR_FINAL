@@ -241,7 +241,7 @@ INSERT INTO patient (user_id, first_name, last_name, phone, country) VALUES
 
 -- Insert sample dentist
 INSERT INTO dentist (user_id, first_name, last_name, license_number, specialization, clinic_name, is_verified) VALUES
-(2, 'Dr. Maria', 'Rodriguez', 'CR-DENT-001', 'Cosmetic Dentistry', 'Costa Rica Dental Center', 1);
+(2, 'Dr. Maria', 'Rodriguez', 'MX-DENT-001', 'Cosmetic Dentistry', 'OdontoTravel Clinic Costa Rica', 1);
 
 -- Insert sample package
 INSERT INTO dental_package (dentist_id, name, description, procedures_included, price_usd, duration_days) VALUES

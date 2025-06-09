@@ -693,7 +693,7 @@ The development server's hot reloading feature allows you to see changes immedia
 ```jsx
 // In src/App.jsx, modify the title text
 <h1 className="text-2xl font-bold text-cyan-500">
-  Costa Rica Dental - Development Mode
+  OdontoTravel - Development Mode
 </h1>
 ```
 

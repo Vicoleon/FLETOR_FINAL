@@ -74,7 +74,7 @@ function LandingPage({ onShowAuth, showAuthModal, setShowAuthModal }) {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <h1 className="text-2xl font-bold text-cyan-500">Costa Rica Dental</h1>
+                <h1 className="text-2xl font-bold text-cyan-500">OdontoTravel</h1>
               </div>
               <nav className="hidden md:ml-8 md:flex md:space-x-8">
                 <a href="#procedures" className="text-gray-700 hover:text-cyan-500 px-3 py-2 text-sm font-medium">Procedures</a>

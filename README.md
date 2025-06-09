@@ -1,4 +1,4 @@
-# Costa Rica Dental Tourism Platform
+# OdontoTravel Tourism Platform
 
 A complete Uber-like dental tourism marketplace connecting patients with dentists in Costa Rica.
 

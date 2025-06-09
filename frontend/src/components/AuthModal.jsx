@@ -71,7 +71,7 @@ export default function AuthModal({ isOpen, onClose }) {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-center text-cyan-600">Welcome to Costa Rica Dental</CardTitle>
+          <CardTitle className="text-center text-cyan-600">Welcome to OdontoTravel</CardTitle>
           <CardDescription className="text-center">
             Sign in to your account or create a new one
           </CardDescription>
