@@ -11,6 +11,7 @@ from src.routes.auth import auth_bp
 from src.routes.packages import packages_bp
 from src.routes.bookings import bookings_bp
 from src.routes.notifications import notifications_bp
+from src.routes.admin import admin_bp
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
 app.config['SECRET_KEY'] = 'asdf#FGSgvasgf$5$WGT'
@@ -24,6 +25,7 @@ app.register_blueprint(auth_bp, url_prefix='/api/auth')
 app.register_blueprint(packages_bp, url_prefix='/api/packages')
 app.register_blueprint(bookings_bp, url_prefix='/api/bookings')
 app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
+app.register_blueprint(admin_bp, url_prefix='/api/admin')
 
 # Enable database functionality
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///dental_tourism.db'

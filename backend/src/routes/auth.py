@@ -129,10 +129,7 @@ def register():
                 years_experience=data.get('years_experience', 0),
                 clinic_name=data.get('clinic_name', ''),
                 clinic_address=data.get('clinic_address', ''),
-                bio=data.get('bio', ''),
-                education=data.get('education', ''),
-                certifications=data.get('certifications', ''),
-                languages_spoken=data.get('languages_spoken', 'English,Spanish')
+                bio=data.get('bio', '')
             )
         
         db.session.add(profile)

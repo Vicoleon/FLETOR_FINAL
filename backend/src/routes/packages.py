@@ -75,22 +75,14 @@ def get_package(package_id):
         return jsonify({'error': str(e)}), 500
 
 @packages_bp.route('/', methods=['POST'])
-def create_package():
+@token_required
+def create_package(current_user):
     """Create a new dental package (dentists only)"""
     try:
-        token = request.headers.get('Authorization')
-        if not token:
-            return jsonify({'error': 'Token is required'}), 401
-        
-        payload = verify_token(token)
-        if not payload:
-            return jsonify({'error': 'Invalid token'}), 401
-        
-        user = User.query.get(payload['user_id'])
-        if not user or user.user_type != UserType.DENTIST:
+        if current_user.user_type != UserType.DENTIST:
             return jsonify({'error': 'Only dentists can create packages'}), 403
         
-        dentist = Dentist.query.filter_by(user_id=user.id).first()
+        dentist = Dentist.query.filter_by(user_id=current_user.id).first()
         if not dentist:
             return jsonify({'error': 'Dentist profile not found'}), 404
         
@@ -127,22 +119,14 @@ def create_package():
         return jsonify({'error': str(e)}), 500
 
 @packages_bp.route('/<int:package_id>', methods=['PUT'])
-def update_package(package_id):
+@token_required
+def update_package(current_user, package_id):
     """Update a dental package (package owner only)"""
     try:
-        token = request.headers.get('Authorization')
-        if not token:
-            return jsonify({'error': 'Token is required'}), 401
-        
-        payload = verify_token(token)
-        if not payload:
-            return jsonify({'error': 'Invalid token'}), 401
-        
-        user = User.query.get(payload['user_id'])
-        if not user or user.user_type != UserType.DENTIST:
+        if current_user.user_type != UserType.DENTIST:
             return jsonify({'error': 'Only dentists can update packages'}), 403
         
-        dentist = Dentist.query.filter_by(user_id=user.id).first()
+        dentist = Dentist.query.filter_by(user_id=current_user.id).first()
         if not dentist:
             return jsonify({'error': 'Dentist profile not found'}), 404
         
@@ -187,22 +171,14 @@ def update_package(package_id):
         return jsonify({'error': str(e)}), 500
 
 @packages_bp.route('/my-packages', methods=['GET'])
-def get_my_packages():
+@token_required
+def get_my_packages(current_user):
     """Get packages created by the authenticated dentist"""
     try:
-        token = request.headers.get('Authorization')
-        if not token:
-            return jsonify({'error': 'Token is required'}), 401
-        
-        payload = verify_token(token)
-        if not payload:
-            return jsonify({'error': 'Invalid token'}), 401
-        
-        user = User.query.get(payload['user_id'])
-        if not user or user.user_type != UserType.DENTIST:
+        if current_user.user_type != UserType.DENTIST:
             return jsonify({'error': 'Only dentists can access this endpoint'}), 403
         
-        dentist = Dentist.query.filter_by(user_id=user.id).first()
+        dentist = Dentist.query.filter_by(user_id=current_user.id).first()
         if not dentist:
             return jsonify({'error': 'Dentist profile not found'}), 404
         

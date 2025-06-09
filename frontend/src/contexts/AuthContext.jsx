@@ -27,6 +27,16 @@ export const AuthProvider = ({ children }) => {
 
   const fetchProfile = async () => {
     try {
+      // First decode the token to check if user is admin
+      const tokenPayload = token ? JSON.parse(atob(token.split('.')[1])) : null
+      
+      // If user is admin, skip profile fetch since admins don't have profiles
+      if (tokenPayload && tokenPayload.user_type === 'admin') {
+        // Keep existing user data if already set (from login)
+        setLoading(false)
+        return
+      }
+      
       const response = await fetch(`${API_BASE_URL}/auth/profile`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -48,7 +58,7 @@ export const AuthProvider = ({ children }) => {
   }
 
   const login = async (username, password) => {
-    try {
+    try {      
       // Add defensive programming for browser extension conflicts
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
@@ -63,6 +73,7 @@ export const AuthProvider = ({ children }) => {
       })
 
       clearTimeout(timeoutId)
+      
       const data = await response.json()
 
       if (response.ok) {
@@ -75,6 +86,7 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: data.error }
       }
     } catch (error) {
+      
       // Handle browser extension conflicts and network errors gracefully
       if (error.name === 'AbortError') {
         return { success: false, error: 'Request timeout - please try again' }

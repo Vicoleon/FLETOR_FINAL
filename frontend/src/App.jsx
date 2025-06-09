@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import AuthModal from './components/AuthModal'
 import PatientDashboard from './components/PatientDashboard'
 import DentistDashboard from './components/DentistDashboard'
+import AdminDashboard from './components/AdminDashboard'
 import ProfileManagement from './components/ProfileManagement'
 import './App.css'
 
@@ -37,6 +38,8 @@ function AppContent() {
       return <PatientDashboard onShowProfile={() => setCurrentView('profile')} />
     } else if (user.user_type === 'dentist') {
       return <DentistDashboard onShowProfile={() => setCurrentView('profile')} />
+    } else if (user.user_type === 'admin') {
+      return <AdminDashboard onShowProfile={() => setCurrentView('profile')} />
     }
   }
 

@@ -243,7 +243,7 @@ export default function DentistDashboard({ onShowProfile }) {
           <div className="flex justify-between items-center h-16">
             <h1 className="text-2xl font-bold text-cyan-500">Dentist Dashboard</h1>
             <div className="flex items-center space-x-4">
-              <span className="text-gray-700">Dr. {user?.profile?.first_name || user?.username}</span>
+              <span className="text-gray-700">Dr. {user?.last_name || user?.username}</span>
               <Button variant="outline" onClick={onShowProfile} className="flex items-center space-x-2">
                 <Settings className="w-4 h-4" />
                 <span>Profile</span>

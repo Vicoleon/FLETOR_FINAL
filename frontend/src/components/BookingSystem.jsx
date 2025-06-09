@@ -7,12 +7,15 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Calendar, Clock, MapPin, Star, DollarSign, User, Phone, Mail, CheckCircle, XCircle, AlertCircle, Bell, RefreshCw, Eye } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Slider } from "@/components/ui/slider"
+import { Calendar, Clock, MapPin, Star, DollarSign, User, Phone, Mail, CheckCircle, XCircle, AlertCircle, Bell, RefreshCw, Eye, Filter, Search, X, Award, Plane, Hotel } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 const BookingSystem = () => {
   const { user } = useAuth()
   const [packages, setPackages] = useState([])
+  const [filteredPackages, setFilteredPackages] = useState([])
   const [myBookings, setMyBookings] = useState([])
   const [selectedPackage, setSelectedPackage] = useState(null)
   const [selectedBooking, setSelectedBooking] = useState(null)
@@ -22,9 +25,38 @@ const BookingSystem = () => {
   })
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false)
   const [isBookingDetailModalOpen, setIsBookingDetailModalOpen] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [activeTab, setActiveTab] = useState('browse')
+  
+  // Filter state
+  const [filters, setFilters] = useState({
+    searchText: '',
+    priceRange: [0, 5000],
+    procedures: [],
+    specializations: [],
+    minRating: 0,
+    minExperience: 0,
+    maxDuration: 30,
+    includesAccommodation: false,
+    includesTransportation: false,
+    isVerified: false,
+    location: '',
+    sortBy: 'price' // price, rating, experience, duration
+  })
+
+  // Filter options
+  const procedureOptions = [
+    'Dental Implants', 'Dental Crowns', 'Dental Veneers', 'Teeth Whitening', 
+    'Dental Cleaning', 'Root Canal', 'Dental Bridges', 'Orthodontics',
+    'Cosmetic Dentistry', 'Oral Surgery', 'Periodontics', 'Endodontics'
+  ]
+  
+  const specializationOptions = [
+    'Cosmetic Dentistry', 'Orthodontics', 'Oral Surgery', 'Periodontics',
+    'Endodontics', 'Prosthodontics', 'General Dentistry', 'Implantology'
+  ]
 
   useEffect(() => {
     fetchPackages()
@@ -32,6 +64,10 @@ const BookingSystem = () => {
       fetchMyBookings()
     }
   }, [user])
+
+  useEffect(() => {
+    applyFilters()
+  }, [packages, filters])
 
   const fetchPackages = async () => {
     try {
@@ -43,6 +79,166 @@ const BookingSystem = () => {
     } catch (error) {
       console.error('Error fetching packages:', error)
     }
+  }
+
+  const applyFilters = () => {
+    let filtered = [...packages]
+
+    // Search text filter
+    if (filters.searchText) {
+      const searchLower = filters.searchText.toLowerCase()
+      filtered = filtered.filter(pkg => 
+        pkg.name?.toLowerCase().includes(searchLower) ||
+        pkg.description?.toLowerCase().includes(searchLower) ||
+        pkg.procedures_included?.some(proc => proc.toLowerCase().includes(searchLower)) ||
+        pkg.dentist?.clinic_name?.toLowerCase().includes(searchLower) ||
+        pkg.dentist?.specialization?.toLowerCase().includes(searchLower)
+      )
+    }
+
+    // Price range filter
+    filtered = filtered.filter(pkg => 
+      pkg.price_usd >= filters.priceRange[0] && pkg.price_usd <= filters.priceRange[1]
+    )
+
+    // Procedures filter
+    if (filters.procedures.length > 0) {
+      filtered = filtered.filter(pkg =>
+        pkg.procedures_included?.some(proc =>
+          filters.procedures.some(filterProc =>
+            proc.toLowerCase().includes(filterProc.toLowerCase())
+          )
+        )
+      )
+    }
+
+    // Specializations filter
+    if (filters.specializations.length > 0) {
+      filtered = filtered.filter(pkg =>
+        filters.specializations.some(spec =>
+          pkg.dentist?.specialization?.toLowerCase().includes(spec.toLowerCase())
+        )
+      )
+    }
+
+    // Rating filter
+    if (filters.minRating > 0) {
+      filtered = filtered.filter(pkg => 
+        (pkg.dentist?.rating || 0) >= filters.minRating
+      )
+    }
+
+    // Experience filter
+    if (filters.minExperience > 0) {
+      filtered = filtered.filter(pkg => 
+        (pkg.dentist?.years_experience || 0) >= filters.minExperience
+      )
+    }
+
+    // Duration filter
+    if (filters.maxDuration < 30) {
+      filtered = filtered.filter(pkg => 
+        (pkg.duration_days || 0) <= filters.maxDuration
+      )
+    }
+
+    // Accommodation filter
+    if (filters.includesAccommodation) {
+      filtered = filtered.filter(pkg => pkg.includes_accommodation === true)
+    }
+
+    // Transportation filter
+    if (filters.includesTransportation) {
+      filtered = filtered.filter(pkg => pkg.includes_transportation === true)
+    }
+
+    // Verified dentist filter
+    if (filters.isVerified) {
+      filtered = filtered.filter(pkg => pkg.dentist?.is_verified === true)
+    }
+
+    // Location filter
+    if (filters.location) {
+      const locationLower = filters.location.toLowerCase()
+      filtered = filtered.filter(pkg =>
+        pkg.dentist?.clinic_address?.toLowerCase().includes(locationLower) ||
+        pkg.dentist?.clinic_name?.toLowerCase().includes(locationLower)
+      )
+    }
+
+    // Sorting
+    filtered.sort((a, b) => {
+      switch (filters.sortBy) {
+        case 'price':
+          return a.price_usd - b.price_usd
+        case 'rating':
+          return (b.dentist?.rating || 0) - (a.dentist?.rating || 0)
+        case 'experience':
+          return (b.dentist?.years_experience || 0) - (a.dentist?.years_experience || 0)
+        case 'duration':
+          return (a.duration_days || 0) - (b.duration_days || 0)
+        default:
+          return 0
+      }
+    })
+
+    setFilteredPackages(filtered)
+  }
+
+  const updateFilter = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }))
+  }
+
+  const toggleProcedure = (procedure) => {
+    setFilters(prev => ({
+      ...prev,
+      procedures: prev.procedures.includes(procedure)
+        ? prev.procedures.filter(p => p !== procedure)
+        : [...prev.procedures, procedure]
+    }))
+  }
+
+  const toggleSpecialization = (specialization) => {
+    setFilters(prev => ({
+      ...prev,
+      specializations: prev.specializations.includes(specialization)
+        ? prev.specializations.filter(s => s !== specialization)
+        : [...prev.specializations, specialization]
+    }))
+  }
+
+  const clearFilters = () => {
+    setFilters({
+      searchText: '',
+      priceRange: [0, 5000],
+      procedures: [],
+      specializations: [],
+      minRating: 0,
+      minExperience: 0,
+      maxDuration: 30,
+      includesAccommodation: false,
+      includesTransportation: false,
+      isVerified: false,
+      location: '',
+      sortBy: 'price'
+    })
+  }
+
+  const getActiveFiltersCount = () => {
+    let count = 0
+    if (filters.searchText) count++
+    if (filters.priceRange[0] > 0 || filters.priceRange[1] < 5000) count++
+    if (filters.procedures.length > 0) count++
+    if (filters.specializations.length > 0) count++
+    if (filters.minRating > 0) count++
+    if (filters.minExperience > 0) count++
+    if (filters.maxDuration < 30) count++
+    if (filters.includesAccommodation) count++
+    if (filters.includesTransportation) count++
+    if (filters.isVerified) count++
+    if (filters.location) count++
+    if (filters.sortBy !== 'price') count++
+    return count
   }
 
   const fetchMyBookings = async () => {
@@ -246,8 +442,253 @@ const BookingSystem = () => {
 
           {/* Browse Packages Tab */}
           <TabsContent value="browse" className="space-y-6">
+            {/* Search and Filter Bar */}
+            <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+              <div className="flex flex-col lg:flex-row gap-4 items-center">
+                {/* Search Bar */}
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    type="text"
+                    placeholder="Search procedures, dentists, or locations..."
+                    value={filters.searchText}
+                    onChange={(e) => updateFilter('searchText', e.target.value)}
+                    className="pl-10 pr-4 py-2 w-full"
+                  />
+                </div>
+
+                {/* Sort By */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600 whitespace-nowrap">Sort by:</span>
+                  <Select value={filters.sortBy} onValueChange={(value) => updateFilter('sortBy', value)}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="price">Price (Low to High)</SelectItem>
+                      <SelectItem value="rating">Rating (High to Low)</SelectItem>
+                      <SelectItem value="experience">Experience (High to Low)</SelectItem>
+                      <SelectItem value="duration">Duration (Short to Long)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Filter Button */}
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="flex items-center gap-2"
+                >
+                  <Filter className="h-4 w-4" />
+                  Filters
+                  {getActiveFiltersCount() > 0 && (
+                    <Badge className="bg-cyan-500 text-white ml-1">
+                      {getActiveFiltersCount()}
+                    </Badge>
+                  )}
+                </Button>
+              </div>
+
+              {/* Expandable Filters */}
+              {showFilters && (
+                <div className="mt-6 border-t pt-6 space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    
+                    {/* Price Range */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium flex items-center gap-2">
+                        <DollarSign className="h-4 w-4" />
+                        Price Range (USD)
+                      </Label>
+                      <div className="px-3">
+                        <Slider
+                          value={filters.priceRange}
+                          onValueChange={(value) => updateFilter('priceRange', value)}
+                          max={5000}
+                          min={0}
+                          step={50}
+                          className="w-full"
+                        />
+                        <div className="flex justify-between text-xs text-gray-500 mt-1">
+                          <span>${filters.priceRange[0]}</span>
+                          <span>${filters.priceRange[1]}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Rating */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium flex items-center gap-2">
+                        <Star className="h-4 w-4" />
+                        Minimum Rating
+                      </Label>
+                      <Select value={filters.minRating.toString()} onValueChange={(value) => updateFilter('minRating', parseFloat(value))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Any rating" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">Any rating</SelectItem>
+                          <SelectItem value="3">3+ stars</SelectItem>
+                          <SelectItem value="4">4+ stars</SelectItem>
+                          <SelectItem value="4.5">4.5+ stars</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Experience */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium flex items-center gap-2">
+                        <Award className="h-4 w-4" />
+                        Min. Experience (Years)
+                      </Label>
+                      <Select value={filters.minExperience.toString()} onValueChange={(value) => updateFilter('minExperience', parseInt(value))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Any experience" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">Any experience</SelectItem>
+                          <SelectItem value="5">5+ years</SelectItem>
+                          <SelectItem value="10">10+ years</SelectItem>
+                          <SelectItem value="15">15+ years</SelectItem>
+                          <SelectItem value="20">20+ years</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    {/* Procedures */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium">Treatment Types</Label>
+                      <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+                        {procedureOptions.map((procedure) => (
+                          <label key={procedure} className="flex items-center space-x-2 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={filters.procedures.includes(procedure)}
+                              onChange={() => toggleProcedure(procedure)}
+                              className="rounded border-gray-300 text-cyan-600 focus:ring-cyan-500"
+                            />
+                            <span className="text-gray-700">{procedure}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Specializations */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium">Dentist Specializations</Label>
+                      <div className="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto">
+                        {specializationOptions.map((specialization) => (
+                          <label key={specialization} className="flex items-center space-x-2 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={filters.specializations.includes(specialization)}
+                              onChange={() => toggleSpecialization(specialization)}
+                              className="rounded border-gray-300 text-cyan-600 focus:ring-cyan-500"
+                            />
+                            <span className="text-gray-700">{specialization}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    
+                    {/* Location */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium flex items-center gap-2">
+                        <MapPin className="h-4 w-4" />
+                        Location
+                      </Label>
+                      <Input
+                        type="text"
+                        placeholder="City, clinic name..."
+                        value={filters.location}
+                        onChange={(e) => updateFilter('location', e.target.value)}
+                      />
+                    </div>
+
+                    {/* Duration */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium flex items-center gap-2">
+                        <Clock className="h-4 w-4" />
+                        Max Duration: {filters.maxDuration} days
+                      </Label>
+                      <Slider
+                        value={[filters.maxDuration]}
+                        onValueChange={(value) => updateFilter('maxDuration', value[0])}
+                        max={30}
+                        min={1}
+                        step={1}
+                        className="w-full"
+                      />
+                    </div>
+
+                    {/* Amenities */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium">Includes</Label>
+                      <div className="space-y-2">
+                        <label className="flex items-center space-x-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={filters.includesAccommodation}
+                            onChange={(e) => updateFilter('includesAccommodation', e.target.checked)}
+                            className="rounded border-gray-300 text-cyan-600 focus:ring-cyan-500"
+                          />
+                          <Hotel className="h-4 w-4 text-gray-500" />
+                          <span className="text-gray-700">Accommodation</span>
+                        </label>
+                        <label className="flex items-center space-x-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={filters.includesTransportation}
+                            onChange={(e) => updateFilter('includesTransportation', e.target.checked)}
+                            className="rounded border-gray-300 text-cyan-600 focus:ring-cyan-500"
+                          />
+                          <Plane className="h-4 w-4 text-gray-500" />
+                          <span className="text-gray-700">Transportation</span>
+                        </label>
+                        <label className="flex items-center space-x-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={filters.isVerified}
+                            onChange={(e) => updateFilter('isVerified', e.target.checked)}
+                            className="rounded border-gray-300 text-cyan-600 focus:ring-cyan-500"
+                          />
+                          <Award className="h-4 w-4 text-gray-500" />
+                          <span className="text-gray-700">Verified Dentist</span>
+                        </label>
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {/* Filter Actions */}
+                  <div className="flex justify-between items-center pt-4 border-t">
+                    <Button 
+                      variant="outline" 
+                      onClick={clearFilters}
+                      className="flex items-center gap-2"
+                    >
+                      <X className="h-4 w-4" />
+                      Clear All
+                    </Button>
+                    <div className="text-sm text-gray-600">
+                      Showing {filteredPackages.length} of {packages.length} packages
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Results */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {packages.map((pkg) => (
+              {filteredPackages.map((pkg) => (
                 <Card key={pkg.id} className="hover:shadow-lg transition-shadow">
                   <CardHeader>
                     <div className="flex justify-between items-start">
@@ -269,17 +710,59 @@ const BookingSystem = () => {
                     <div className="space-y-2 text-sm">
                       <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4 text-gray-400" />
-                        <span>{pkg.duration_days} days treatment</span>
+                        <span>{pkg.duration_days || 'TBD'} days treatment</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <MapPin className="h-4 w-4 text-gray-400" />
-                        <span>San José, Costa Rica</span>
+                        <span>{pkg.dentist?.clinic_name || 'Costa Rica'}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Star className="h-4 w-4 text-yellow-400" />
-                        <span>4.8/5 rating</span>
+                        <span>{pkg.dentist?.rating ? `${pkg.dentist.rating}/5` : 'New'} rating</span>
                       </div>
+                      {pkg.dentist?.years_experience && (
+                        <div className="flex items-center gap-2">
+                          <Award className="h-4 w-4 text-gray-400" />
+                          <span>{pkg.dentist.years_experience} years experience</span>
+                        </div>
+                      )}
                     </div>
+
+                    {/* Procedures and Amenities */}
+                    {pkg.procedures_included && (
+                      <div className="space-y-2">
+                        <p className="text-xs font-medium text-gray-700">Includes:</p>
+                        <div className="flex flex-wrap gap-1">
+                          {pkg.procedures_included.slice(0, 3).map((procedure, index) => (
+                            <Badge key={index} variant="secondary" className="text-xs">
+                              {procedure}
+                            </Badge>
+                          ))}
+                          {pkg.procedures_included.length > 3 && (
+                            <Badge variant="secondary" className="text-xs">
+                              +{pkg.procedures_included.length - 3} more
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {(pkg.includes_accommodation || pkg.includes_transportation) && (
+                      <div className="flex items-center gap-3 text-xs text-green-600">
+                        {pkg.includes_accommodation && (
+                          <div className="flex items-center gap-1">
+                            <Hotel className="h-3 w-3" />
+                            <span>Hotel</span>
+                          </div>
+                        )}
+                        {pkg.includes_transportation && (
+                          <div className="flex items-center gap-1">
+                            <Plane className="h-3 w-3" />
+                            <span>Transport</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     <div className="border-t pt-4">
                       <div className="flex justify-between items-center">
@@ -386,7 +869,7 @@ const BookingSystem = () => {
       ) : (
         // Non-patient view (browse only)
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {packages.map((pkg) => (
+          {filteredPackages.map((pkg) => (
             <Card key={pkg.id} className="hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="flex justify-between items-start">
@@ -408,17 +891,59 @@ const BookingSystem = () => {
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4 text-gray-400" />
-                    <span>{pkg.duration_days} days treatment</span>
+                    <span>{pkg.duration_days || 'TBD'} days treatment</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <MapPin className="h-4 w-4 text-gray-400" />
-                    <span>San José, Costa Rica</span>
+                    <span>{pkg.dentist?.clinic_name || 'Costa Rica'}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Star className="h-4 w-4 text-yellow-400" />
-                    <span>4.8/5 rating</span>
+                    <span>{pkg.dentist?.rating ? `${pkg.dentist.rating}/5` : 'New'} rating</span>
                   </div>
+                  {pkg.dentist?.years_experience && (
+                    <div className="flex items-center gap-2">
+                      <Award className="h-4 w-4 text-gray-400" />
+                      <span>{pkg.dentist.years_experience} years experience</span>
+                    </div>
+                  )}
                 </div>
+
+                {/* Procedures and Amenities */}
+                {pkg.procedures_included && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-gray-700">Includes:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {pkg.procedures_included.slice(0, 3).map((procedure, index) => (
+                        <Badge key={index} variant="secondary" className="text-xs">
+                          {procedure}
+                        </Badge>
+                      ))}
+                      {pkg.procedures_included.length > 3 && (
+                        <Badge variant="secondary" className="text-xs">
+                          +{pkg.procedures_included.length - 3} more
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {(pkg.includes_accommodation || pkg.includes_transportation) && (
+                  <div className="flex items-center gap-3 text-xs text-green-600">
+                    {pkg.includes_accommodation && (
+                      <div className="flex items-center gap-1">
+                        <Hotel className="h-3 w-3" />
+                        <span>Hotel</span>
+                      </div>
+                    )}
+                    {pkg.includes_transportation && (
+                      <div className="flex items-center gap-1">
+                        <Plane className="h-3 w-3" />
+                        <span>Transport</span>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="border-t pt-4">
                   <div className="flex justify-between items-center">
@@ -621,7 +1146,7 @@ const BookingSystem = () => {
       </Dialog>
 
       {/* Empty State for Packages */}
-      {packages.length === 0 && activeTab === 'browse' && (
+      {filteredPackages.length === 0 && activeTab === 'browse' && (
         <div className="text-center py-12">
           <Calendar className="mx-auto h-24 w-24 text-gray-400" />
           <h3 className="mt-4 text-lg font-medium text-gray-900">No packages available</h3>
