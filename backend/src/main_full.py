@@ -14,10 +14,22 @@ from src.routes.notifications import notifications_bp
 from src.routes.admin import admin_bp
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
-app.config['SECRET_KEY'] = 'asdf#FGSgvasgf$5$WGT'
 
-# Enable CORS for all routes
-CORS(app)
+# Environment-aware configuration
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'asdf#FGSgvasgf$5$WGT')
+app.config['DEBUG'] = os.environ.get('FLASK_ENV', 'development') == 'development'
+
+# Enable CORS for all routes - configure for environment
+if os.environ.get('FLASK_ENV') == 'production':
+    # Production CORS - restrict to specific origins
+    allowed_origins = [
+        'https://odontotravel.onrender.com',
+        'https://odontotravel-frontend.onrender.com'
+    ]
+    CORS(app, origins=allowed_origins, supports_credentials=True)
+else:
+    # Development CORS - allow all origins
+    CORS(app)
 
 # Register blueprints
 app.register_blueprint(user_bp, url_prefix='/api/users')
@@ -27,8 +39,14 @@ app.register_blueprint(bookings_bp, url_prefix='/api/bookings')
 app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
 app.register_blueprint(admin_bp, url_prefix='/api/admin')
 
-# Enable database functionality
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///dental_tourism.db'
+# Enable database functionality - environment-aware
+if os.environ.get('DATABASE_URL'):
+    # Production database (PostgreSQL on Render)
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
+else:
+    # Development database (SQLite)
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///dental_tourism.db'
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 
@@ -59,4 +77,7 @@ def serve(path):
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Environment-aware server configuration
+    port = int(os.environ.get('PORT', 5000))
+    debug_mode = os.environ.get('FLASK_ENV', 'development') == 'development'
+    app.run(host='0.0.0.0', port=port, debug=debug_mode)

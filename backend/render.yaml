@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: odontotravel-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python src/main_full.py
+    plan: free
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: PORT
+        value: 5000
+    # Optionally add a PostgreSQL database
+    # databases:
+    #   - name: odontotravel-db
+    #     plan: free

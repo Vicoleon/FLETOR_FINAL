@@ -5,12 +5,15 @@
   "main": "index.js",
   "scripts": {
     "dev:frontend": "cd frontend && npm run dev",
-    "dev:backend": "cd backend && python src/main.py",
+    "dev:backend": "cd backend && python src/main_full.py",
+    "dev:backend:simple": "cd backend && python src/main.py",
     "build:frontend": "cd frontend && npm run build",
+    "build": "chmod +x build.sh && ./build.sh",
     "install:frontend": "cd frontend && npm install",
     "install:backend": "cd backend && pip install -r requirements.txt",
     "setup": "npm run install:frontend && npm run install:backend",
     "start": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "start:prod": "cd backend && gunicorn -w 4 -b 0.0.0.0:5000 src.main_full:app",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
