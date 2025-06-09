@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from werkzeug.security import check_password_hash, generate_password_hash
 from src.models.user import db, User, Patient, Dentist, UserType, Notification
 import jwt
@@ -22,7 +22,7 @@ def token_required(f):
         try:
             if token.startswith('Bearer '):
                 token = token[7:]
-            data = jwt.decode(token, 'your-secret-key', algorithms=['HS256'])
+            data = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
             current_user = User.query.get(data['user_id'])
             if not current_user:
                 return jsonify({'error': 'Invalid token'}), 401
@@ -141,7 +141,7 @@ def register():
             'username': user.username,
             'user_type': user.user_type.value,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
-        }, 'your-secret-key', algorithm='HS256')
+        }, current_app.config['SECRET_KEY'], algorithm='HS256')
         
         # Get profile data
         profile_data = {
@@ -218,7 +218,7 @@ def login():
             'username': user.username,
             'user_type': user.user_type.value,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
-        }, 'your-secret-key', algorithm='HS256')
+        }, current_app.config['SECRET_KEY'], algorithm='HS256')
         
         # Get profile data
         profile_data = {}
@@ -531,7 +531,7 @@ def refresh_token(current_user):
             'username': current_user.username,
             'user_type': current_user.user_type.value,
             'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
-        }, 'your-secret-key', algorithm='HS256')
+        }, current_app.config['SECRET_KEY'], algorithm='HS256')
         
         return jsonify({'access_token': token}), 200
         

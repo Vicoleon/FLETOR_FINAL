@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider"
 import { Calendar, Clock, MapPin, Star, DollarSign, User, Phone, Mail, CheckCircle, XCircle, AlertCircle, Bell, RefreshCw, Eye, Filter, Search, X, Award, Plane, Hotel } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { API_ENDPOINTS } from '../config/api'
 
 const BookingSystem = () => {
   const { user } = useAuth()
@@ -71,7 +72,7 @@ const BookingSystem = () => {
 
   const fetchPackages = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/packages/')
+      const response = await fetch(API_ENDPOINTS.PACKAGES.LIST)
       if (response.ok) {
         const data = await response.json()
         setPackages(data.packages || [])
@@ -244,7 +245,7 @@ const BookingSystem = () => {
   const fetchMyBookings = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:5000/api/bookings/my-bookings', {
+      const response = await fetch(API_ENDPOINTS.BOOKINGS.MY_BOOKINGS, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -267,7 +268,7 @@ const BookingSystem = () => {
 
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:5000/api/bookings/', {
+      const response = await fetch(API_ENDPOINTS.BOOKINGS.CREATE, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -305,7 +306,7 @@ const BookingSystem = () => {
 
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`http://localhost:5000/api/bookings/${bookingId}/status`, {
+      const response = await fetch(API_ENDPOINTS.BOOKINGS.STATUS(bookingId), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

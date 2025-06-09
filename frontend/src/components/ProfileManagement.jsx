@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { useAuth } from '../contexts/AuthContext'
+import { API_ENDPOINTS } from '../config/api'
 import { User, Mail, Phone, MapPin, Calendar, Shield, Key, Bell, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react'
 
 const ProfileManagement = ({ onBackToDashboard }) => {
@@ -39,7 +40,7 @@ const ProfileManagement = ({ onBackToDashboard }) => {
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:5000/api/auth/profile', {
+      const response = await fetch(API_ENDPOINTS.AUTH.PROFILE, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -61,7 +62,7 @@ const ProfileManagement = ({ onBackToDashboard }) => {
   const fetchNotifications = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:5000/api/auth/notifications', {
+      const response = await fetch(API_ENDPOINTS.AUTH.NOTIFICATIONS, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -79,7 +80,7 @@ const ProfileManagement = ({ onBackToDashboard }) => {
   const fetchUnreadCount = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:5000/api/auth/notifications/unread-count', {
+      const response = await fetch(API_ENDPOINTS.AUTH.NOTIFICATIONS_UNREAD, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -101,7 +102,7 @@ const ProfileManagement = ({ onBackToDashboard }) => {
     
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:5000/api/auth/profile', {
+      const response = await fetch(API_ENDPOINTS.AUTH.PROFILE, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -129,6 +130,17 @@ const ProfileManagement = ({ onBackToDashboard }) => {
     setPasswordError('')
     setPasswordSuccess('')
     
+    // Validation
+    if (!passwordData.current_password) {
+      setPasswordError('Current password is required')
+      return
+    }
+    
+    if (!passwordData.new_password) {
+      setPasswordError('New password is required')
+      return
+    }
+    
     if (passwordData.new_password !== passwordData.confirm_password) {
       setPasswordError('New passwords do not match')
       return
@@ -139,9 +151,30 @@ const ProfileManagement = ({ onBackToDashboard }) => {
       return
     }
     
+    // Check if new password has letters and numbers
+    if (!/[A-Za-z]/.test(passwordData.new_password)) {
+      setPasswordError('Password must contain at least one letter')
+      return
+    }
+    
+    if (!/\d/.test(passwordData.new_password)) {
+      setPasswordError('Password must contain at least one number')
+      return
+    }
+    
+    if (passwordData.current_password === passwordData.new_password) {
+      setPasswordError('New password must be different from current password')
+      return
+    }
+    
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:5000/api/auth/change-password', {
+      if (!token) {
+        setPasswordError('You must be logged in to change password')
+        return
+      }
+      
+      const response = await fetch(API_ENDPOINTS.AUTH.CHANGE_PASSWORD, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -153,22 +186,24 @@ const ProfileManagement = ({ onBackToDashboard }) => {
         })
       })
       
+      const data = await response.json()
+      
       if (response.ok) {
         setPasswordSuccess('Password changed successfully!')
         setPasswordData({ current_password: '', new_password: '', confirm_password: '' })
       } else {
-        const data = await response.json()
         setPasswordError(data.error || 'Failed to change password')
       }
     } catch (err) {
-      setPasswordError('Error changing password')
+      console.error('Password change error:', err)
+      setPasswordError('Network error - please try again')
     }
   }
 
   const markNotificationRead = async (notificationId) => {
     try {
       const token = localStorage.getItem('token')
-      await fetch(`http://localhost:5000/api/auth/notifications/${notificationId}/read`, {
+      await fetch(`${API_ENDPOINTS.AUTH.NOTIFICATIONS}/${notificationId}/read`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -185,7 +220,7 @@ const ProfileManagement = ({ onBackToDashboard }) => {
   const markAllNotificationsRead = async () => {
     try {
       const token = localStorage.getItem('token')
-      await fetch('http://localhost:5000/api/auth/notifications/mark-all-read', {
+      await fetch(`${API_ENDPOINTS.AUTH.NOTIFICATIONS}/mark-all-read`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
