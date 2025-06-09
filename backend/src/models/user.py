@@ -27,6 +27,58 @@ class NotificationType(Enum):
     REVIEW_RECEIVED = "review_received"
     SYSTEM = "system"
 
+# New models for treatments and specializations
+class TreatmentType(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    description = db.Column(db.Text)
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # NULL for system-created
+    is_system_default = db.Column(db.Boolean, default=False)  # True for pre-defined treatments
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'created_by': self.created_by,
+            'is_system_default': self.is_system_default,
+            'is_active': self.is_active,
+            'created_at': self.created_at.isoformat()
+        }
+
+class Specialization(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    description = db.Column(db.Text)
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)  # NULL for system-created
+    is_system_default = db.Column(db.Boolean, default=False)  # True for pre-defined specializations
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'created_by': self.created_by,
+            'is_system_default': self.is_system_default,
+            'is_active': self.is_active,
+            'created_at': self.created_at.isoformat()
+        }
+
+# Association tables for many-to-many relationships
+dentist_specializations = db.Table('dentist_specializations',
+    db.Column('dentist_id', db.Integer, db.ForeignKey('dentist.id'), primary_key=True),
+    db.Column('specialization_id', db.Integer, db.ForeignKey('specialization.id'), primary_key=True)
+)
+
+package_treatments = db.Table('package_treatments',
+    db.Column('package_id', db.Integer, db.ForeignKey('dental_package.id'), primary_key=True),
+    db.Column('treatment_id', db.Integer, db.ForeignKey('treatment_type.id'), primary_key=True)
+)
+
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
@@ -93,7 +145,7 @@ class Dentist(db.Model):
     first_name = db.Column(db.String(50), nullable=False)
     last_name = db.Column(db.String(50), nullable=False)
     license_number = db.Column(db.String(50), unique=True, nullable=False)
-    specialization = db.Column(db.String(100))
+    specialization = db.Column(db.String(100))  # Keep for backwards compatibility
     years_experience = db.Column(db.Integer)
     clinic_name = db.Column(db.String(100))
     clinic_address = db.Column(db.Text)
@@ -106,6 +158,10 @@ class Dentist(db.Model):
     user = db.relationship('User', backref=db.backref('dentist', uselist=False))
     packages = db.relationship('DentalPackage', backref='dentist', lazy=True)
     bookings = db.relationship('Booking', backref='dentist', lazy=True)
+    
+    # Many-to-many relationship with specializations
+    specializations = db.relationship('Specialization', secondary=dentist_specializations, lazy='subquery',
+                                    backref=db.backref('dentists', lazy=True))
 
     def to_dict(self):
         return {
@@ -115,6 +171,7 @@ class Dentist(db.Model):
             'last_name': self.last_name,
             'license_number': self.license_number,
             'specialization': self.specialization,
+            'specializations': [spec.to_dict() for spec in self.specializations],
             'years_experience': self.years_experience,
             'clinic_name': self.clinic_name,
             'clinic_address': self.clinic_address,
@@ -130,7 +187,7 @@ class DentalPackage(db.Model):
     dentist_id = db.Column(db.Integer, db.ForeignKey('dentist.id'), nullable=False)
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
-    procedures_included = db.Column(db.JSON)  # List of procedures
+    procedures_included = db.Column(db.JSON)  # Keep for backwards compatibility
     price_usd = db.Column(db.Float, nullable=False)
     duration_days = db.Column(db.Integer)  # Treatment duration
     includes_accommodation = db.Column(db.Boolean, default=False)
@@ -140,6 +197,10 @@ class DentalPackage(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     bookings = db.relationship('Booking', backref='package', lazy=True)
+    
+    # Many-to-many relationship with treatment types
+    treatments = db.relationship('TreatmentType', secondary=package_treatments, lazy='subquery',
+                               backref=db.backref('packages', lazy=True))
 
     def to_dict(self):
         return {
@@ -148,6 +209,7 @@ class DentalPackage(db.Model):
             'name': self.name,
             'description': self.description,
             'procedures_included': self.procedures_included,
+            'treatments': [treatment.to_dict() for treatment in self.treatments],
             'price_usd': self.price_usd,
             'duration_days': self.duration_days,
             'includes_accommodation': self.includes_accommodation,

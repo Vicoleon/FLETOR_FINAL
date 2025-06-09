@@ -10,7 +10,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { useAuth } from '../contexts/AuthContext'
 import { API_ENDPOINTS } from '../config/api'
-import { User, Mail, Phone, MapPin, Calendar, Shield, Key, Bell, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react'
+import { User, Mail, Phone, MapPin, Calendar, Shield, Key, Bell, CheckCircle, AlertCircle, ArrowLeft, UserCircle, Briefcase } from 'lucide-react'
+import { MultiSelectDropdown } from '@/components/ui/MultiSelectDropdown'
 
 const ProfileManagement = ({ onBackToDashboard }) => {
   const { user, updateProfile } = useAuth()
@@ -21,6 +22,12 @@ const ProfileManagement = ({ onBackToDashboard }) => {
   const [error, setError] = useState('')
   const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
+  
+  // Treatment and specialization data
+  const [treatmentTypes, setTreatmentTypes] = useState([])
+  const [specializations, setSpecializations] = useState([])
+  const [selectedTreatments, setSelectedTreatments] = useState([])
+  const [selectedSpecializations, setSelectedSpecializations] = useState([])
   
   // Password change state
   const [passwordData, setPasswordData] = useState({
@@ -35,6 +42,8 @@ const ProfileManagement = ({ onBackToDashboard }) => {
     fetchProfile()
     fetchNotifications()
     fetchUnreadCount()
+    fetchTreatmentTypes()
+    fetchSpecializations()
   }, [])
 
   const fetchProfile = async () => {
@@ -49,6 +58,11 @@ const ProfileManagement = ({ onBackToDashboard }) => {
       if (response.ok) {
         const data = await response.json()
         setProfile(data.profile)
+        
+        // Set selected treatments and specializations if dentist
+        if (data.profile.user_type === 'dentist' && data.profile.specializations) {
+          setSelectedSpecializations(data.profile.specializations.map(spec => spec.id))
+        }
       } else {
         setError('Failed to load profile')
       }
@@ -92,6 +106,88 @@ const ProfileManagement = ({ onBackToDashboard }) => {
       }
     } catch (err) {
       console.error('Error loading unread count:', err)
+    }
+  }
+
+  const fetchTreatmentTypes = async () => {
+    try {
+      const response = await fetch(API_ENDPOINTS.TREATMENTS.TREATMENT_TYPES)
+      if (response.ok) {
+        const data = await response.json()
+        setTreatmentTypes(data.treatments || [])
+      }
+    } catch (err) {
+      console.error('Failed to load treatment types:', err)
+    }
+  }
+
+  const fetchSpecializations = async () => {
+    try {
+      const response = await fetch(API_ENDPOINTS.TREATMENTS.SPECIALIZATIONS)
+      if (response.ok) {
+        const data = await response.json()
+        setSpecializations(data.specializations || [])
+      }
+    } catch (err) {
+      console.error('Failed to load specializations:', err)
+    }
+  }
+
+  const createTreatmentType = async (name) => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(API_ENDPOINTS.TREATMENTS.CREATE_TREATMENT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ name })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setTreatmentTypes(prev => [...prev, data.treatment])
+        setMessage('New treatment type created successfully')
+        setTimeout(() => setMessage(''), 3000)
+        return data.treatment
+      } else {
+        const errorData = await response.json()
+        setError(errorData.error || 'Failed to create treatment type')
+        setTimeout(() => setError(''), 5000)
+      }
+    } catch (err) {
+      setError('Failed to create treatment type')
+      setTimeout(() => setError(''), 5000)
+    }
+  }
+
+  const createSpecialization = async (name) => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(API_ENDPOINTS.TREATMENTS.CREATE_SPECIALIZATION, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ name })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setSpecializations(prev => [...prev, data.specialization])
+        setMessage('New specialization created successfully')
+        setTimeout(() => setMessage(''), 3000)
+        return data.specialization
+      } else {
+        const errorData = await response.json()
+        setError(errorData.error || 'Failed to create specialization')
+        setTimeout(() => setError(''), 5000)
+      }
+    } catch (err) {
+      setError('Failed to create specialization')
+      setTimeout(() => setError(''), 5000)
     }
   }
 
@@ -327,7 +423,15 @@ const ProfileManagement = ({ onBackToDashboard }) => {
               <ProfileForm 
                 profile={profile} 
                 onUpdate={handleProfileUpdate} 
-                saving={saving} 
+                saving={saving}
+                treatmentTypes={treatmentTypes}
+                specializations={specializations}
+                selectedTreatments={selectedTreatments}
+                selectedSpecializations={selectedSpecializations}
+                onTreatmentSelectionChange={setSelectedTreatments}
+                onSpecializationSelectionChange={setSelectedSpecializations}
+                onCreateTreatment={createTreatmentType}
+                onCreateSpecialization={createSpecialization}
               />
             </TabsContent>
 
@@ -360,18 +464,35 @@ const ProfileManagement = ({ onBackToDashboard }) => {
   )
 }
 
-const ProfileForm = ({ profile, onUpdate, saving }) => {
+const ProfileForm = ({ 
+  profile, 
+  onUpdate, 
+  saving, 
+  treatmentTypes, 
+  specializations,
+  selectedTreatments,
+  selectedSpecializations,
+  onTreatmentSelectionChange,
+  onSpecializationSelectionChange,
+  onCreateTreatment,
+  onCreateSpecialization
+}) => {
   const [formData, setFormData] = useState({})
 
   useEffect(() => {
     if (profile) {
-      setFormData(profile)
+      setFormData({ ...profile })
     }
   }, [profile])
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    onUpdate(formData)
+    const updatedData = {
+      ...formData,
+      specialization_ids: selectedSpecializations,
+      treatment_ids: selectedTreatments
+    }
+    onUpdate(updatedData)
   }
 
   const handleChange = (field, value) => {
@@ -491,17 +612,6 @@ const ProfileForm = ({ profile, onUpdate, saving }) => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="specialization">Specialization</Label>
-                  <Input
-                    id="specialization"
-                    value={formData.specialization || ''}
-                    onChange={(e) => handleChange('specialization', e.target.value)}
-                    placeholder="Enter your specialization"
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
                   <Label htmlFor="years_experience">Years of Experience</Label>
                   <Input
                     id="years_experience"
@@ -511,6 +621,8 @@ const ProfileForm = ({ profile, onUpdate, saving }) => {
                     placeholder="Years of experience"
                   />
                 </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="clinic_name">Clinic Name</Label>
                   <Input
@@ -541,6 +653,19 @@ const ProfileForm = ({ profile, onUpdate, saving }) => {
                   rows={4}
                 />
               </div>
+
+              {/* Specializations Dropdown */}
+              <MultiSelectDropdown
+                label="Specializations"
+                options={specializations}
+                selectedValues={selectedSpecializations}
+                onSelectionChange={onSpecializationSelectionChange}
+                onCreateNew={onCreateSpecialization}
+                allowCustom={true}
+                placeholder="Select your specializations..."
+                customPlaceholder="Enter new specialization..."
+                className="mb-6"
+              />
             </>
           )}
 

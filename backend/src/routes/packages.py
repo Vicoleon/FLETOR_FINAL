@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from src.models.user import db, DentalPackage, Dentist, User, UserType
+from src.models.user import db, DentalPackage, Dentist, User, UserType, TreatmentType
 from src.routes.auth import token_required
 
 packages_bp = Blueprint('packages', __name__)
@@ -38,6 +38,7 @@ def get_packages():
                     'name': f"{dentist.first_name} {dentist.last_name}",
                     'clinic_name': dentist.clinic_name,
                     'specialization': dentist.specialization,
+                    'specializations': [spec.to_dict() for spec in dentist.specializations],
                     'rating': dentist.rating,
                     'years_experience': dentist.years_experience,
                     'is_verified': dentist.is_verified
@@ -46,9 +47,12 @@ def get_packages():
         
         return jsonify({
             'packages': result,
-            'total': packages.total,
-            'pages': packages.pages,
-            'current_page': page
+            'pagination': {
+                'page': packages.page,
+                'pages': packages.pages,
+                'per_page': packages.per_page,
+                'total': packages.total
+            }
         }), 200
         
     except Exception as e:
@@ -89,7 +93,7 @@ def create_package(current_user):
         data = request.get_json()
         
         # Validate required fields
-        required_fields = ['name', 'description', 'price_usd', 'procedures_included']
+        required_fields = ['name', 'description', 'price_usd']
         for field in required_fields:
             if field not in data:
                 return jsonify({'error': f'{field} is required'}), 400
@@ -98,7 +102,7 @@ def create_package(current_user):
             dentist_id=dentist.id,
             name=data['name'],
             description=data['description'],
-            procedures_included=data['procedures_included'],
+            procedures_included=data.get('procedures_included'),
             price_usd=data['price_usd'],
             duration_days=data.get('duration_days'),
             includes_accommodation=data.get('includes_accommodation', False),
@@ -107,6 +111,15 @@ def create_package(current_user):
         )
         
         db.session.add(package)
+        db.session.flush()  # Flush to get the package ID
+        
+        # Handle treatment associations
+        if 'treatment_ids' in data and data['treatment_ids']:
+            for treatment_id in data['treatment_ids']:
+                treatment = TreatmentType.query.get(treatment_id)
+                if treatment and treatment.is_active:
+                    package.treatments.append(treatment)
+        
         db.session.commit()
         
         return jsonify({
@@ -159,6 +172,18 @@ def update_package(current_user, package_id):
         if 'is_active' in data:
             package.is_active = data['is_active']
         
+        # Handle treatment associations
+        if 'treatment_ids' in data:
+            # Clear existing treatments
+            package.treatments.clear()
+            
+            # Add new treatments
+            if data['treatment_ids']:
+                for treatment_id in data['treatment_ids']:
+                    treatment = TreatmentType.query.get(treatment_id)
+                    if treatment and treatment.is_active:
+                        package.treatments.append(treatment)
+        
         db.session.commit()
         
         return jsonify({
@@ -170,13 +195,42 @@ def update_package(current_user, package_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+@packages_bp.route('/<int:package_id>', methods=['DELETE'])
+@token_required
+def delete_package(current_user, package_id):
+    """Delete a dental package (package owner only)"""
+    try:
+        if current_user.user_type != UserType.DENTIST:
+            return jsonify({'error': 'Only dentists can delete packages'}), 403
+        
+        dentist = Dentist.query.filter_by(user_id=current_user.id).first()
+        if not dentist:
+            return jsonify({'error': 'Dentist profile not found'}), 404
+        
+        package = DentalPackage.query.get(package_id)
+        if not package:
+            return jsonify({'error': 'Package not found'}), 404
+        
+        if package.dentist_id != dentist.id:
+            return jsonify({'error': 'You can only delete your own packages'}), 403
+        
+        # Soft delete - mark as inactive instead of hard delete
+        package.is_active = False
+        db.session.commit()
+        
+        return jsonify({'message': 'Package deleted successfully'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
 @packages_bp.route('/my-packages', methods=['GET'])
 @token_required
 def get_my_packages(current_user):
-    """Get packages created by the authenticated dentist"""
+    """Get packages for the current dentist"""
     try:
         if current_user.user_type != UserType.DENTIST:
-            return jsonify({'error': 'Only dentists can access this endpoint'}), 403
+            return jsonify({'error': 'Only dentists can view their packages'}), 403
         
         dentist = Dentist.query.filter_by(user_id=current_user.id).first()
         if not dentist:

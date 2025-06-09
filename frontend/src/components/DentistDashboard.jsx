@@ -9,8 +9,10 @@ import NotificationCenter from './NotificationCenter'
 import { 
   Calendar, MapPin, DollarSign, Clock, Star, User, Phone, Mail, 
   Plus, Edit, Trash2, CheckCircle, XCircle, Package, Users, 
-  TrendingUp, AlertCircle, Settings, LogOut, Bell
+  TrendingUp, AlertCircle, Settings, LogOut, Bell, Eye
 } from 'lucide-react'
+import { MultiSelectDropdown } from '@/components/ui/MultiSelectDropdown'
+import { API_ENDPOINTS } from '../config/api'
 
 export default function DentistDashboard({ onShowProfile }) {
   const { user, token, API_BASE_URL, logout } = useAuth()
@@ -34,12 +36,17 @@ export default function DentistDashboard({ onShowProfile }) {
     max_patients: 1
   })
 
+  // Treatment and specialization data
+  const [treatmentTypes, setTreatmentTypes] = useState([])
+  const [selectedTreatments, setSelectedTreatments] = useState([])
+
   useEffect(() => {
     fetchUnreadCount()
     fetchPendingRequestsCount()
     fetchMyPackages()
     fetchPendingRequests()
     fetchAllBookings()
+    fetchTreatmentTypes()
     setLoading(false)
   }, [])
 
@@ -128,6 +135,42 @@ export default function DentistDashboard({ onShowProfile }) {
     }
   }
 
+  const fetchTreatmentTypes = async () => {
+    try {
+      const response = await fetch(API_ENDPOINTS.TREATMENTS.TREATMENT_TYPES)
+      if (response.ok) {
+        const data = await response.json()
+        setTreatmentTypes(data.treatments || [])
+      }
+    } catch (err) {
+      console.error('Failed to load treatment types:', err)
+    }
+  }
+
+  const createTreatmentType = async (name) => {
+    try {
+      const response = await fetch(API_ENDPOINTS.TREATMENTS.CREATE_TREATMENT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ name })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setTreatmentTypes(prev => [...prev, data.treatment])
+        return data.treatment
+      } else {
+        const errorData = await response.json()
+        alert(errorData.error || 'Failed to create treatment type')
+      }
+    } catch (err) {
+      alert('Failed to create treatment type')
+    }
+  }
+
   const createPackage = async (e) => {
     e.preventDefault()
     try {
@@ -135,10 +178,11 @@ export default function DentistDashboard({ onShowProfile }) {
         ...newPackage,
         price_usd: parseFloat(newPackage.price_usd),
         duration_days: parseInt(newPackage.duration_days) || null,
-        procedures_included: newPackage.procedures_included.split(',').map(p => p.trim()).filter(p => p)
+        procedures_included: newPackage.procedures_included.split(',').map(p => p.trim()).filter(p => p),
+        treatment_ids: selectedTreatments
       }
 
-      const response = await fetch(`${API_BASE_URL}/packages/`, {
+      const response = await fetch(`${API_ENDPOINTS.PACKAGES.LIST}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -152,13 +196,14 @@ export default function DentistDashboard({ onShowProfile }) {
         setNewPackage({
           name: '',
           description: '',
-          procedures_included: [],
+          procedures_included: '',
           price_usd: '',
           duration_days: '',
           includes_accommodation: false,
           includes_transportation: false,
           max_patients: 1
         })
+        setSelectedTreatments([])
         fetchMyPackages()
         alert('Package created successfully!')
       } else {
@@ -464,18 +509,33 @@ export default function DentistDashboard({ onShowProfile }) {
                         />
                       </div>
                       
+                      {/* Treatment Types Dropdown */}
+                      <MultiSelectDropdown
+                        label="Treatment Types"
+                        options={treatmentTypes}
+                        selectedValues={selectedTreatments}
+                        onSelectionChange={setSelectedTreatments}
+                        onCreateNew={createTreatmentType}
+                        allowCustom={true}
+                        placeholder="Select treatment types for this package..."
+                        customPlaceholder="Enter new treatment type..."
+                      />
+                      
+                      {/* Backward compatibility: Keep procedures field */}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Procedures Included (comma-separated)
+                          Additional Procedures (optional, comma-separated)
                         </label>
                         <input
                           type="text"
-                          required
                           value={newPackage.procedures_included}
                           onChange={(e) => setNewPackage({...newPackage, procedures_included: e.target.value})}
                           className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-cyan-500"
-                          placeholder="e.g., Dental Cleaning, Whitening, Veneers"
+                          placeholder="e.g., X-rays, Consultation"
                         />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Use the treatment types above for main procedures. This field is for additional services.
+                        </p>
                       </div>
                       
                       <div className="grid grid-cols-2 gap-4">
@@ -534,7 +594,10 @@ export default function DentistDashboard({ onShowProfile }) {
                         <Button 
                           type="button" 
                           variant="outline" 
-                          onClick={() => setShowCreatePackage(false)}
+                          onClick={() => {
+                            setShowCreatePackage(false)
+                            setSelectedTreatments([])
+                          }}
                         >
                           Cancel
                         </Button>

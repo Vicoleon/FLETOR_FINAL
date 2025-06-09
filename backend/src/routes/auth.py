@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app
 from werkzeug.security import check_password_hash, generate_password_hash
-from src.models.user import db, User, Patient, Dentist, UserType, Notification
+from src.models.user import db, User, Patient, Dentist, UserType, Notification, Specialization
 import jwt
 import datetime
 import secrets
@@ -15,13 +15,19 @@ EMAIL_REGEX = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        token = request.headers.get('Authorization')
+        token = None
+        auth_header = request.headers.get('Authorization')
+        
+        if auth_header:
+            try:
+                token = auth_header.split(" ")[1]  # Bearer TOKEN
+            except IndexError:
+                return jsonify({'error': 'Invalid token format'}), 401
+        
         if not token:
             return jsonify({'error': 'Token is missing'}), 401
         
         try:
-            if token.startswith('Bearer '):
-                token = token[7:]
             data = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
             current_user = User.query.get(data['user_id'])
             if not current_user:
@@ -32,6 +38,7 @@ def token_required(f):
             return jsonify({'error': 'Invalid token'}), 401
         
         return f(current_user, *args, **kwargs)
+    
     return decorated
 
 def validate_password(password):
@@ -62,13 +69,14 @@ def create_notification(user_id, title, message, notification_type, related_id=N
 
 @auth_bp.route('/register', methods=['POST'])
 def register():
+    """Register a new user and create their profile"""
     try:
         data = request.get_json()
         
         # Validate required fields
         required_fields = ['username', 'email', 'password', 'user_type']
         for field in required_fields:
-            if not data.get(field):
+            if field not in data:
                 return jsonify({'error': f'{field} is required'}), 400
         
         # Validate email format
@@ -88,23 +96,23 @@ def register():
             return jsonify({'error': 'Email already exists'}), 400
         
         # Validate user type
-        if data['user_type'] not in ['patient', 'dentist']:
+        try:
+            user_type = UserType(data['user_type'])
+        except ValueError:
             return jsonify({'error': 'Invalid user type'}), 400
-        
-        user_type_enum = UserType.PATIENT if data['user_type'] == 'patient' else UserType.DENTIST
         
         # Create user
         user = User(
             username=data['username'],
             email=data['email'],
             password_hash=generate_password_hash(data['password']),
-            user_type=user_type_enum,
+            user_type=user_type,
             email_verified=False,
             verification_token=secrets.token_urlsafe(32)
         )
         
         db.session.add(user)
-        db.session.flush()  # Get user ID
+        db.session.flush()  # Flush to get user ID
         
         # Create profile based on user type
         if data['user_type'] == 'patient':
@@ -131,8 +139,20 @@ def register():
                 clinic_address=data.get('clinic_address', ''),
                 bio=data.get('bio', '')
             )
+            
+            db.session.add(profile)
+            db.session.flush()  # Flush to get dentist ID
+            
+            # Handle specialization associations for dentists
+            if 'specialization_ids' in data and data['specialization_ids']:
+                for spec_id in data['specialization_ids']:
+                    specialization = Specialization.query.get(spec_id)
+                    if specialization and specialization.is_active:
+                        profile.specializations.append(specialization)
         
-        db.session.add(profile)
+        if data['user_type'] == 'patient':
+            db.session.add(profile)
+        
         db.session.commit()
         
         # Generate JWT token for automatic login
@@ -154,6 +174,7 @@ def register():
             profile_data.update({
                 'license_number': profile.license_number,
                 'specialization': profile.specialization,
+                'specializations': [spec.to_dict() for spec in profile.specializations],
                 'years_experience': profile.years_experience,
                 'clinic_name': profile.clinic_name,
                 'clinic_address': profile.clinic_address,
@@ -190,26 +211,24 @@ def register():
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
+    """Authenticate user and return token"""
     try:
         data = request.get_json()
         
         if not data.get('username') or not data.get('password'):
             return jsonify({'error': 'Username and password are required'}), 400
         
-        # Find user by username or email
-        user = User.query.filter(
-            (User.username == data['username']) | 
-            (User.email == data['username'])
-        ).first()
+        user = User.query.filter_by(username=data['username']).first()
         
         if not user or not check_password_hash(user.password_hash, data['password']):
             return jsonify({'error': 'Invalid credentials'}), 401
         
         if not user.is_active:
-            return jsonify({'error': 'Account is deactivated'}), 401
+            return jsonify({'error': 'Account is disabled'}), 401
         
         # Update last login
         user.last_login = datetime.datetime.utcnow()
+        user.failed_login_attempts = 0
         db.session.commit()
         
         # Generate JWT token
@@ -221,12 +240,12 @@ def login():
         }, current_app.config['SECRET_KEY'], algorithm='HS256')
         
         # Get profile data
-        profile_data = {}
         if user.user_type == UserType.PATIENT:
             profile = Patient.query.filter_by(user_id=user.id).first()
         else:
             profile = Dentist.query.filter_by(user_id=user.id).first()
         
+        profile_data = {}
         if profile:
             profile_data = {
                 'first_name': profile.first_name,
@@ -238,16 +257,21 @@ def login():
                 profile_data.update({
                     'license_number': profile.license_number,
                     'specialization': profile.specialization,
+                    'specializations': [spec.to_dict() for spec in profile.specializations],
                     'years_experience': profile.years_experience,
                     'clinic_name': profile.clinic_name,
                     'clinic_address': profile.clinic_address,
+                    'bio': profile.bio,
                     'rating': profile.rating,
-                    'total_reviews': profile.total_reviews
+                    'total_reviews': profile.total_reviews,
+                    'is_verified': profile.is_verified
                 })
             else:
                 profile_data.update({
                     'country': profile.country,
-                    'date_of_birth': profile.date_of_birth.isoformat() if profile.date_of_birth else None
+                    'date_of_birth': profile.date_of_birth.isoformat() if profile.date_of_birth else None,
+                    'medical_history': profile.medical_history,
+                    'emergency_contact': profile.emergency_contact
                 })
         
         return jsonify({
@@ -259,9 +283,10 @@ def login():
                 'email': user.email,
                 'user_type': user.user_type.value,
                 'email_verified': user.email_verified,
-                'profile': profile_data,
-                'last_login': user.last_login.isoformat() if user.last_login else None
-            }
+                'created_at': user.created_at.isoformat(),
+                'profile': profile_data
+            },
+            'message': 'Login successful'
         }), 200
         
     except Exception as e:
@@ -407,6 +432,7 @@ def get_profile(current_user):
             profile_data.update({
                 'license_number': profile.license_number,
                 'specialization': profile.specialization,
+                'specializations': [spec.to_dict() for spec in profile.specializations],
                 'years_experience': profile.years_experience,
                 'clinic_name': profile.clinic_name,
                 'clinic_address': profile.clinic_address,
@@ -423,7 +449,7 @@ def get_profile(current_user):
                 'emergency_contact': profile.emergency_contact
             })
         
-        return jsonify({'profile': profile_data}), 200
+        return jsonify(profile_data), 200
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -443,27 +469,13 @@ def update_profile(current_user):
         if not profile:
             return jsonify({'error': 'Profile not found'}), 404
         
-        # Update basic fields
+        # Update common fields
         if 'first_name' in data:
             profile.first_name = data['first_name']
         if 'last_name' in data:
             profile.last_name = data['last_name']
         if 'phone' in data:
             profile.phone = data['phone']
-        
-        # Update user email if provided
-        if 'email' in data and data['email'] != current_user.email:
-            if not validate_email(data['email']):
-                return jsonify({'error': 'Invalid email format'}), 400
-            
-            # Check if email already exists
-            existing_user = User.query.filter_by(email=data['email']).first()
-            if existing_user and existing_user.id != current_user.id:
-                return jsonify({'error': 'Email already exists'}), 400
-            
-            current_user.email = data['email']
-            current_user.email_verified = False  # Require re-verification
-            current_user.verification_token = secrets.token_urlsafe(32)
         
         # Update type-specific fields
         if current_user.user_type == UserType.DENTIST:
@@ -479,6 +491,18 @@ def update_profile(current_user):
                 profile.clinic_address = data['clinic_address']
             if 'bio' in data:
                 profile.bio = data['bio']
+            
+            # Handle specialization associations
+            if 'specialization_ids' in data:
+                # Clear existing specializations
+                profile.specializations.clear()
+                
+                # Add new specializations
+                if data['specialization_ids']:
+                    for spec_id in data['specialization_ids']:
+                        specialization = Specialization.query.get(spec_id)
+                        if specialization and specialization.is_active:
+                            profile.specializations.append(specialization)
         else:
             if 'country' in data:
                 profile.country = data['country']

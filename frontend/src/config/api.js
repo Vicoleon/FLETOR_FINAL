@@ -50,6 +50,19 @@ export const API_ENDPOINTS = {
     CLEAR_ALL: `${API_BASE_URL}/api/notifications/clear-all`,
   },
   
+  // Treatment and Specialization endpoints
+  TREATMENTS: {
+    TREATMENT_TYPES: `${API_BASE_URL}/api/treatments/treatment-types`,
+    SPECIALIZATIONS: `${API_BASE_URL}/api/treatments/specializations`,
+    POPULATE_DEFAULTS: `${API_BASE_URL}/api/treatments/populate-defaults`,
+    CREATE_TREATMENT: `${API_BASE_URL}/api/treatments/treatment-types`,
+    CREATE_SPECIALIZATION: `${API_BASE_URL}/api/treatments/specializations`,
+    UPDATE_TREATMENT: (id) => `${API_BASE_URL}/api/treatments/treatment-types/${id}`,
+    UPDATE_SPECIALIZATION: (id) => `${API_BASE_URL}/api/treatments/specializations/${id}`,
+    DELETE_TREATMENT: (id) => `${API_BASE_URL}/api/treatments/treatment-types/${id}`,
+    DELETE_SPECIALIZATION: (id) => `${API_BASE_URL}/api/treatments/specializations/${id}`,
+  },
+  
   // Admin endpoints
   ADMIN: {
     STATS: `${API_BASE_URL}/api/admin/stats`,
