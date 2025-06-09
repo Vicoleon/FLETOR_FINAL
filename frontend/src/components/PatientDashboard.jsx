@@ -4,14 +4,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAuth } from '../contexts/AuthContext'
+import { API_ENDPOINTS } from '../config/api'
 import BookingSystem from './BookingSystem'
 import NotificationCenter from './NotificationCenter'
 import { Calendar, MapPin, DollarSign, Clock, Star, User, Phone, Mail, Settings, LogOut, Bell } from 'lucide-react'
 
 export default function PatientDashboard({ onShowProfile }) {
-  const { user, token, API_BASE_URL, logout } = useAuth()
+  const { user, logout } = useAuth()
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
+
+  const token = localStorage.getItem('token')
 
   useEffect(() => {
     fetchUnreadCount()
@@ -20,11 +23,8 @@ export default function PatientDashboard({ onShowProfile }) {
 
   const fetchUnreadCount = async () => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:5000/api/notifications/unread-count', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await fetch(API_ENDPOINTS.NOTIFICATIONS.UNREAD_COUNT, {
+        headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.ok) {
         const data = await response.json()

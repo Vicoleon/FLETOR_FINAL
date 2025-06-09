@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Calendar, Clock, MapPin, User, Phone, Mail, CheckCircle, XCircle, AlertCircle, DollarSign, Star, RefreshCw, Bell, Eye } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { API_ENDPOINTS } from '../config/api'
 
 const DentistBookingManagement = () => {
   const { user } = useAuth()
@@ -24,6 +25,8 @@ const DentistBookingManagement = () => {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
   const [autoRefresh, setAutoRefresh] = useState(true)
+
+  const token = localStorage.getItem('token')
 
   useEffect(() => {
     if (user && user.user_type === 'dentist') {
@@ -48,11 +51,8 @@ const DentistBookingManagement = () => {
 
   const fetchPendingRequests = async () => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:5000/api/bookings/pending-requests', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await fetch(API_ENDPOINTS.BOOKINGS.PENDING_REQUESTS, {
+        headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.ok) {
         const data = await response.json()
@@ -65,11 +65,8 @@ const DentistBookingManagement = () => {
 
   const fetchAllBookings = async () => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:5000/api/bookings/my-bookings', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await fetch(API_ENDPOINTS.BOOKINGS.MY_BOOKINGS, {
+        headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.ok) {
         const data = await response.json()
@@ -88,8 +85,7 @@ const DentistBookingManagement = () => {
     setMessage('')
 
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch(`http://localhost:5000/api/bookings/${selectedRequest.id}/accept`, {
+      const response = await fetch(API_ENDPOINTS.BOOKINGS.ACCEPT(selectedRequest.id), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -128,8 +124,7 @@ const DentistBookingManagement = () => {
     setMessage('')
 
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch(`http://localhost:5000/api/bookings/${selectedRequest.id}/decline`, {
+      const response = await fetch(API_ENDPOINTS.BOOKINGS.DECLINE(selectedRequest.id), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -162,8 +157,7 @@ const DentistBookingManagement = () => {
 
   const handleUpdateBookingStatus = async (bookingId, newStatus, additionalData = {}) => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch(`http://localhost:5000/api/bookings/${bookingId}/status`, {
+      const response = await fetch(API_ENDPOINTS.BOOKINGS.STATUS(bookingId), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

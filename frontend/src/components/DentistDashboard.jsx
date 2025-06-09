@@ -52,11 +52,8 @@ export default function DentistDashboard({ onShowProfile }) {
 
   const fetchUnreadCount = async () => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:5000/api/notifications/unread-count', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await fetch(API_ENDPOINTS.NOTIFICATIONS.UNREAD_COUNT, {
+        headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.ok) {
         const data = await response.json()
@@ -69,11 +66,8 @@ export default function DentistDashboard({ onShowProfile }) {
 
   const fetchPendingRequestsCount = async () => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:5000/api/bookings/pending-requests', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await fetch(API_ENDPOINTS.BOOKINGS.PENDING_REQUESTS, {
+        headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.ok) {
         const data = await response.json()
@@ -86,10 +80,8 @@ export default function DentistDashboard({ onShowProfile }) {
 
   const fetchMyPackages = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/packages/my-packages`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await fetch(API_ENDPOINTS.PACKAGES.MY_PACKAGES, {
+        headers: { 'Authorization': `Bearer ${token}` }
       })
       
       if (response.ok) {
@@ -103,10 +95,8 @@ export default function DentistDashboard({ onShowProfile }) {
 
   const fetchPendingRequests = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/bookings/pending-requests`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await fetch(API_ENDPOINTS.BOOKINGS.PENDING_REQUESTS, {
+        headers: { 'Authorization': `Bearer ${token}` }
       })
       
       if (response.ok) {
@@ -120,10 +110,8 @@ export default function DentistDashboard({ onShowProfile }) {
 
   const fetchAllBookings = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/bookings/my-bookings`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await fetch(API_ENDPOINTS.BOOKINGS.MY_BOOKINGS, {
+        headers: { 'Authorization': `Bearer ${token}` }
       })
       
       if (response.ok) {
@@ -182,7 +170,7 @@ export default function DentistDashboard({ onShowProfile }) {
         treatment_ids: selectedTreatments
       }
 
-      const response = await fetch(`${API_ENDPOINTS.PACKAGES.LIST}`, {
+      const response = await fetch(API_ENDPOINTS.PACKAGES.LIST, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -222,7 +210,7 @@ export default function DentistDashboard({ onShowProfile }) {
         requestBody.confirmed_date = confirmedDate
       }
 
-      const response = await fetch(`${API_BASE_URL}/bookings/${bookingId}/status`, {
+      const response = await fetch(API_ENDPOINTS.BOOKINGS.STATUS(bookingId), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

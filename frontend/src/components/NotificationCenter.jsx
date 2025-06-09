@@ -4,8 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Bell, BellRing, Check, X, Eye, Trash2, RefreshCw, Calendar, User, MessageSquare, Star, AlertCircle } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Bell, BellRing, Check, X, Eye, Trash2, RefreshCw, Calendar, User, MessageSquare, Star, AlertCircle, MoreVertical, Package, CheckCircle } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { API_ENDPOINTS } from '../config/api'
 
 const NotificationCenter = () => {
   const { user } = useAuth()
@@ -17,12 +19,14 @@ const NotificationCenter = () => {
   const [message, setMessage] = useState('')
   const [filter, setFilter] = useState('all') // all, unread, read
 
+  const token = localStorage.getItem('token')
+
   useEffect(() => {
     if (user) {
       fetchNotifications()
       fetchUnreadCount()
     }
-  }, [user])
+  }, [user, filter])
 
   // Auto-refresh notifications every 30 seconds
   useEffect(() => {
@@ -38,12 +42,9 @@ const NotificationCenter = () => {
 
   const fetchNotifications = async () => {
     try {
-      const token = localStorage.getItem('token')
       const unreadOnly = filter === 'unread' ? '?unread_only=true' : ''
-      const response = await fetch(`http://localhost:5000/api/notifications/${unreadOnly}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await fetch(`${API_ENDPOINTS.NOTIFICATIONS.LIST}${unreadOnly}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.ok) {
         const data = await response.json()
@@ -56,11 +57,8 @@ const NotificationCenter = () => {
 
   const fetchUnreadCount = async () => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:5000/api/notifications/unread-count', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const response = await fetch(API_ENDPOINTS.NOTIFICATIONS.UNREAD_COUNT, {
+        headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.ok) {
         const data = await response.json()
@@ -73,12 +71,9 @@ const NotificationCenter = () => {
 
   const markAsRead = async (notificationId) => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch(`http://localhost:5000/api/notifications/${notificationId}/read`, {
+      const response = await fetch(API_ENDPOINTS.NOTIFICATIONS.MARK_READ(notificationId), {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.ok) {
         fetchNotifications()
@@ -90,14 +85,11 @@ const NotificationCenter = () => {
   }
 
   const markAllAsRead = async () => {
-    setLoading(true)
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:5000/api/notifications/mark-all-read', {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      setLoading(true)
+      const response = await fetch(API_ENDPOINTS.NOTIFICATIONS.MARK_ALL_READ, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.ok) {
         setMessage('All notifications marked as read')
@@ -105,8 +97,8 @@ const NotificationCenter = () => {
         fetchUnreadCount()
       }
     } catch (error) {
+      console.error('Error marking all notifications as read:', error)
       setMessage('Error marking notifications as read')
-      console.error('Error:', error)
     } finally {
       setLoading(false)
     }
@@ -114,12 +106,9 @@ const NotificationCenter = () => {
 
   const deleteNotification = async (notificationId) => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch(`http://localhost:5000/api/notifications/${notificationId}`, {
+      const response = await fetch(API_ENDPOINTS.NOTIFICATIONS.DELETE(notificationId), {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.ok) {
         setMessage('Notification deleted')
@@ -128,22 +117,20 @@ const NotificationCenter = () => {
         setIsDetailModalOpen(false)
       }
     } catch (error) {
-      setMessage('Error deleting notification')
-      console.error('Error:', error)
+      console.error('Error deleting notification:', error)
     }
   }
 
   const clearAllNotifications = async () => {
-    if (!confirm('Are you sure you want to clear all notifications? This action cannot be undone.')) return
+    if (!confirm('Are you sure you want to clear all notifications? This action cannot be undone.')) {
+      return
+    }
 
-    setLoading(true)
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:5000/api/notifications/clear-all', {
+      setLoading(true)
+      const response = await fetch(API_ENDPOINTS.NOTIFICATIONS.CLEAR_ALL, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       })
       if (response.ok) {
         setMessage('All notifications cleared')
@@ -151,8 +138,8 @@ const NotificationCenter = () => {
         fetchUnreadCount()
       }
     } catch (error) {
+      console.error('Error clearing notifications:', error)
       setMessage('Error clearing notifications')
-      console.error('Error:', error)
     } finally {
       setLoading(false)
     }

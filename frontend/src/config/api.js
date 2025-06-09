@@ -1,18 +1,62 @@
 // API Configuration - automatically detects environment
-const isDevelopment = import.meta.env.DEV || import.meta.env.NODE_ENV === 'development';
-
-// Get API base URL based on environment
 const getApiBaseUrl = () => {
-  // For production, use environment variable or default production URL
-  if (!isDevelopment) {
-    return import.meta.env.VITE_API_BASE_URL || 'https://odontotravel-api.onrender.com';
-  }
+  // Check multiple indicators for development environment
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+  const isDevelopment = 
+    import.meta.env.DEV === true ||
+    import.meta.env.NODE_ENV === 'development' ||
+    import.meta.env.VITE_APP_ENV === 'development' ||
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname.includes('.local');
+
+  // Get environment variables
+  const envApiUrl = import.meta.env.VITE_API_BASE_URL;
+  const appEnv = import.meta.env.VITE_APP_ENV;
   
+  // Log environment info for debugging (only in development or if console is available)
+  if (typeof console !== 'undefined') {
+    console.log('🔧 API Environment Detection:', {
+      isDev: import.meta.env.DEV,
+      nodeEnv: import.meta.env.NODE_ENV,
+      appEnv: appEnv,
+      hostname: hostname,
+      isDevelopment: isDevelopment,
+      envApiUrl: envApiUrl,
+      mode: import.meta.env.MODE
+    });
+  }
+
+  // Force production API URL if explicitly set to production
+  if (appEnv === 'production' && envApiUrl) {
+    console.log('🚀 Using production API URL from environment:', envApiUrl);
+    return envApiUrl;
+  }
+
   // For development, use localhost
-  return 'http://localhost:5000';
+  if (isDevelopment) {
+    console.log('🛠️ Using development API URL: http://localhost:5000');
+    return 'http://localhost:5000';
+  }
+
+  // For production, prioritize environment variable, then fall back to default
+  const productionApiUrl = envApiUrl || 'https://odontotravel-api.onrender.com';
+  console.log('🌐 Using production API URL:', productionApiUrl);
+  
+  return productionApiUrl;
 };
 
 export const API_BASE_URL = getApiBaseUrl();
+
+// Log the final API configuration
+if (typeof console !== 'undefined') {
+  console.log('🎯 Final API Configuration:', {
+    baseUrl: API_BASE_URL,
+    environment: import.meta.env.VITE_APP_ENV || 'development',
+    mode: import.meta.env.MODE
+  });
+}
+
 export const API_ENDPOINTS = {
   // Auth endpoints
   AUTH: {
