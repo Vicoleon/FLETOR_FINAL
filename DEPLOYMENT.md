@@ -50,18 +50,27 @@ The app automatically detects the environment:
 
 #### Frontend Deployment
 1. **Create Static Site** in Render dashboard
-2. **Connect your repository**
+2. **Connect your repository** (`https://github.com/Vicoleon/OdontoTravel`)
 3. **Configure service**:
    - **Root Directory**: `frontend`
-   - **Build Command**: `npm install && npm run build`
+   - **Build Command**: `chmod +x build.sh && ./build.sh`
    - **Publish Directory**: `dist`
 
 4. **Set Environment Variables**:
    ```
-   VITE_API_BASE_URL=https://your-backend-service.onrender.com
+   NODE_VERSION=20
+   VITE_API_BASE_URL=https://odontotravel-api.onrender.com
    VITE_APP_NAME=OdontoTravel
    VITE_APP_ENV=production
    ```
+
+#### 🔧 Frontend Deployment Fixes
+The frontend deployment has been optimized to handle pnpm/npm compatibility:
+
+- **Build Script**: Uses `frontend/build.sh` which cleans node_modules and rebuilds with npm
+- **Dependencies**: Fixed `date-fns` version compatibility (downgraded to v3.6.0)
+- **Package Manager**: Removed pnpm lock to allow npm usage
+- **Node Version**: Pinned to Node.js 20 for react-router-dom compatibility
 
 ### Option 2: Single Service Deployment
 
