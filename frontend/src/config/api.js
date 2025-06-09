@@ -2,13 +2,19 @@
 const getApiBaseUrl = () => {
   // Check multiple indicators for development environment
   const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+  const port = typeof window !== 'undefined' ? window.location.port : '';
+  
+  // More robust development detection
   const isDevelopment = 
     import.meta.env.DEV === true ||
     import.meta.env.NODE_ENV === 'development' ||
     import.meta.env.VITE_APP_ENV === 'development' ||
     hostname === 'localhost' ||
     hostname === '127.0.0.1' ||
-    hostname.includes('.local');
+    hostname.includes('.local') ||
+    port === '5173' || // Vite default port
+    port === '3000' || // Common dev port
+    hostname.includes('localhost');
 
   // Get environment variables
   const envApiUrl = import.meta.env.VITE_API_BASE_URL;
@@ -21,10 +27,17 @@ const getApiBaseUrl = () => {
       nodeEnv: import.meta.env.NODE_ENV,
       appEnv: appEnv,
       hostname: hostname,
+      port: port,
       isDevelopment: isDevelopment,
       envApiUrl: envApiUrl,
       mode: import.meta.env.MODE
     });
+  }
+
+  // ALWAYS use localhost if we're on localhost, regardless of environment variables
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    console.log('🛠️ Detected localhost - Using development API URL: http://localhost:5000');
+    return 'http://localhost:5000';
   }
 
   // Force production API URL if explicitly set to production
@@ -119,5 +132,14 @@ export const API_ENDPOINTS = {
   // Health check
   HEALTH: `${API_BASE_URL}/api/health`,
 };
+
+// Debug log the actual endpoints being constructed
+if (typeof console !== 'undefined') {
+  console.log('🔗 API Endpoints Debug:', {
+    profileEndpoint: API_ENDPOINTS.AUTH.PROFILE,
+    loginEndpoint: API_ENDPOINTS.AUTH.LOGIN,
+    healthEndpoint: API_ENDPOINTS.HEALTH
+  });
+}
 
 export default API_BASE_URL; 

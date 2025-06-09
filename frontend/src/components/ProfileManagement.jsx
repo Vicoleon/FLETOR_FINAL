@@ -57,12 +57,16 @@ const ProfileManagement = ({ onBackToDashboard }) => {
       
       if (response.ok) {
         const data = await response.json()
-        setProfile(data.profile)
+        // The profile data is directly in the response, not nested under 'profile'
+        setProfile(data)
         
         // Set selected treatments and specializations if dentist
-        if (data.profile.user_type === 'dentist' && data.profile.specializations) {
-          setSelectedSpecializations(data.profile.specializations.map(spec => spec.id))
+        if (data.user_type === 'dentist' && data.specializations) {
+          setSelectedSpecializations(data.specializations.map(spec => spec.id))
         }
+        
+        // Clear any previous errors
+        setError('')
       } else {
         setError('Failed to load profile')
       }
