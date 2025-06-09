@@ -1,0 +1,38 @@
+{
+  "name": "dental-tourism-platform",
+  "version": "1.0.0",
+  "description": "Complete Uber-like dental tourism marketplace",
+  "main": "index.js",
+  "scripts": {
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && python src/main.py",
+    "build:frontend": "cd frontend && npm run build",
+    "install:frontend": "cd frontend && npm install",
+    "install:backend": "cd backend && pip install -r requirements.txt",
+    "setup": "npm run install:frontend && npm run install:backend",
+    "start": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "dental",
+    "tourism",
+    "react",
+    "flask",
+    "marketplace",
+    "uber-like"
+  ],
+  "author": "Dental Tourism Platform",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/dental-tourism-platform.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/dental-tourism-platform/issues"
+  },
+  "homepage": "https://github.com/your-username/dental-tourism-platform#readme"
+}
+

@@ -1,0 +1,217 @@
+from flask import Blueprint, request, jsonify
+from src.models.user import db, DentalPackage, Dentist, User, UserType
+from src.routes.auth import token_required
+
+packages_bp = Blueprint('packages', __name__)
+
+@packages_bp.route('/', methods=['GET'])
+def get_packages():
+    """Get all active dental packages"""
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 10, type=int)
+        specialization = request.args.get('specialization')
+        min_price = request.args.get('min_price', type=float)
+        max_price = request.args.get('max_price', type=float)
+        
+        query = DentalPackage.query.filter_by(is_active=True)
+        
+        # Apply filters
+        if specialization:
+            query = query.join(Dentist).filter(Dentist.specialization.ilike(f'%{specialization}%'))
+        
+        if min_price:
+            query = query.filter(DentalPackage.price_usd >= min_price)
+        
+        if max_price:
+            query = query.filter(DentalPackage.price_usd <= max_price)
+        
+        packages = query.paginate(page=page, per_page=per_page, error_out=False)
+        
+        result = []
+        for package in packages.items:
+            package_data = package.to_dict()
+            # Add dentist information
+            dentist = Dentist.query.get(package.dentist_id)
+            if dentist:
+                package_data['dentist'] = {
+                    'name': f"{dentist.first_name} {dentist.last_name}",
+                    'clinic_name': dentist.clinic_name,
+                    'specialization': dentist.specialization,
+                    'rating': dentist.rating,
+                    'years_experience': dentist.years_experience,
+                    'is_verified': dentist.is_verified
+                }
+            result.append(package_data)
+        
+        return jsonify({
+            'packages': result,
+            'total': packages.total,
+            'pages': packages.pages,
+            'current_page': page
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@packages_bp.route('/<int:package_id>', methods=['GET'])
+def get_package(package_id):
+    """Get specific package details"""
+    try:
+        package = DentalPackage.query.get(package_id)
+        if not package:
+            return jsonify({'error': 'Package not found'}), 404
+        
+        package_data = package.to_dict()
+        
+        # Add dentist information
+        dentist = Dentist.query.get(package.dentist_id)
+        if dentist:
+            package_data['dentist'] = dentist.to_dict()
+        
+        return jsonify(package_data), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@packages_bp.route('/', methods=['POST'])
+def create_package():
+    """Create a new dental package (dentists only)"""
+    try:
+        token = request.headers.get('Authorization')
+        if not token:
+            return jsonify({'error': 'Token is required'}), 401
+        
+        payload = verify_token(token)
+        if not payload:
+            return jsonify({'error': 'Invalid token'}), 401
+        
+        user = User.query.get(payload['user_id'])
+        if not user or user.user_type != UserType.DENTIST:
+            return jsonify({'error': 'Only dentists can create packages'}), 403
+        
+        dentist = Dentist.query.filter_by(user_id=user.id).first()
+        if not dentist:
+            return jsonify({'error': 'Dentist profile not found'}), 404
+        
+        data = request.get_json()
+        
+        # Validate required fields
+        required_fields = ['name', 'description', 'price_usd', 'procedures_included']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'{field} is required'}), 400
+        
+        package = DentalPackage(
+            dentist_id=dentist.id,
+            name=data['name'],
+            description=data['description'],
+            procedures_included=data['procedures_included'],
+            price_usd=data['price_usd'],
+            duration_days=data.get('duration_days'),
+            includes_accommodation=data.get('includes_accommodation', False),
+            includes_transportation=data.get('includes_transportation', False),
+            max_patients=data.get('max_patients', 1)
+        )
+        
+        db.session.add(package)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Package created successfully',
+            'package': package.to_dict()
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@packages_bp.route('/<int:package_id>', methods=['PUT'])
+def update_package(package_id):
+    """Update a dental package (package owner only)"""
+    try:
+        token = request.headers.get('Authorization')
+        if not token:
+            return jsonify({'error': 'Token is required'}), 401
+        
+        payload = verify_token(token)
+        if not payload:
+            return jsonify({'error': 'Invalid token'}), 401
+        
+        user = User.query.get(payload['user_id'])
+        if not user or user.user_type != UserType.DENTIST:
+            return jsonify({'error': 'Only dentists can update packages'}), 403
+        
+        dentist = Dentist.query.filter_by(user_id=user.id).first()
+        if not dentist:
+            return jsonify({'error': 'Dentist profile not found'}), 404
+        
+        package = DentalPackage.query.get(package_id)
+        if not package:
+            return jsonify({'error': 'Package not found'}), 404
+        
+        if package.dentist_id != dentist.id:
+            return jsonify({'error': 'You can only update your own packages'}), 403
+        
+        data = request.get_json()
+        
+        # Update fields
+        if 'name' in data:
+            package.name = data['name']
+        if 'description' in data:
+            package.description = data['description']
+        if 'procedures_included' in data:
+            package.procedures_included = data['procedures_included']
+        if 'price_usd' in data:
+            package.price_usd = data['price_usd']
+        if 'duration_days' in data:
+            package.duration_days = data['duration_days']
+        if 'includes_accommodation' in data:
+            package.includes_accommodation = data['includes_accommodation']
+        if 'includes_transportation' in data:
+            package.includes_transportation = data['includes_transportation']
+        if 'max_patients' in data:
+            package.max_patients = data['max_patients']
+        if 'is_active' in data:
+            package.is_active = data['is_active']
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Package updated successfully',
+            'package': package.to_dict()
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@packages_bp.route('/my-packages', methods=['GET'])
+def get_my_packages():
+    """Get packages created by the authenticated dentist"""
+    try:
+        token = request.headers.get('Authorization')
+        if not token:
+            return jsonify({'error': 'Token is required'}), 401
+        
+        payload = verify_token(token)
+        if not payload:
+            return jsonify({'error': 'Invalid token'}), 401
+        
+        user = User.query.get(payload['user_id'])
+        if not user or user.user_type != UserType.DENTIST:
+            return jsonify({'error': 'Only dentists can access this endpoint'}), 403
+        
+        dentist = Dentist.query.filter_by(user_id=user.id).first()
+        if not dentist:
+            return jsonify({'error': 'Dentist profile not found'}), 404
+        
+        packages = DentalPackage.query.filter_by(dentist_id=dentist.id).all()
+        
+        return jsonify({
+            'packages': [package.to_dict() for package in packages]
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
