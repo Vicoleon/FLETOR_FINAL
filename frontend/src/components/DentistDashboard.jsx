@@ -17,10 +17,29 @@ export default function DentistDashboard({ onShowProfile }) {
   const [unreadCount, setUnreadCount] = useState(0)
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0)
   const [loading, setLoading] = useState(true)
+  
+  // Add missing state variables
+  const [packages, setPackages] = useState([])
+  const [bookingRequests, setBookingRequests] = useState([])
+  const [allBookings, setAllBookings] = useState([])
+  const [showCreatePackage, setShowCreatePackage] = useState(false)
+  const [newPackage, setNewPackage] = useState({
+    name: '',
+    description: '',
+    procedures_included: '',
+    price_usd: '',
+    duration_days: '',
+    includes_accommodation: false,
+    includes_transportation: false,
+    max_patients: 1
+  })
 
   useEffect(() => {
     fetchUnreadCount()
     fetchPendingRequestsCount()
+    fetchMyPackages()
+    fetchPendingRequests()
+    fetchAllBookings()
     setLoading(false)
   }, [])
 
@@ -68,7 +87,7 @@ export default function DentistDashboard({ onShowProfile }) {
       
       if (response.ok) {
         const data = await response.json()
-        setPackages(data.packages)
+        setPackages(data.packages || [])
       }
     } catch (error) {
       console.error('Error fetching packages:', error)
@@ -85,7 +104,7 @@ export default function DentistDashboard({ onShowProfile }) {
       
       if (response.ok) {
         const data = await response.json()
-        setPendingRequests(data.pending_requests)
+        setBookingRequests(data.pending_requests || [])
       }
     } catch (error) {
       console.error('Error fetching pending requests:', error)
@@ -102,7 +121,7 @@ export default function DentistDashboard({ onShowProfile }) {
       
       if (response.ok) {
         const data = await response.json()
-        setAllBookings(data.bookings)
+        setAllBookings(data.bookings || [])
       }
     } catch (error) {
       console.error('Error fetching bookings:', error)
@@ -303,7 +322,7 @@ export default function DentistDashboard({ onShowProfile }) {
         </div>
 
         <Tabs defaultValue="bookings" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="bookings" className="flex items-center gap-2">
               <Calendar className="h-4 w-4" />
               Bookings
@@ -312,6 +331,10 @@ export default function DentistDashboard({ onShowProfile }) {
                   {pendingRequestsCount > 99 ? '99+' : pendingRequestsCount}
                 </Badge>
               )}
+            </TabsTrigger>
+            <TabsTrigger value="packages" className="flex items-center gap-2">
+              <Package className="h-4 w-4" />
+              My Packages
             </TabsTrigger>
             <TabsTrigger value="notifications" className="flex items-center gap-2">
               <Bell className="h-4 w-4" />
@@ -327,6 +350,206 @@ export default function DentistDashboard({ onShowProfile }) {
 
           <TabsContent value="bookings" className="mt-6">
             <DentistBookingManagement />
+          </TabsContent>
+
+          <TabsContent value="packages" className="mt-6">
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-gray-900">My Dental Packages</h2>
+                <Button 
+                  onClick={() => setShowCreatePackage(true)} 
+                  className="bg-cyan-500 hover:bg-cyan-600 text-white flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Create Package
+                </Button>
+              </div>
+
+              {packages.length === 0 ? (
+                <div className="text-center py-12">
+                  <Package className="mx-auto h-24 w-24 text-gray-400" />
+                  <h3 className="mt-4 text-lg font-medium text-gray-900">No packages yet</h3>
+                  <p className="mt-2 text-gray-500">Create your first dental package to start attracting patients.</p>
+                  <Button 
+                    onClick={() => setShowCreatePackage(true)} 
+                    className="mt-4 bg-cyan-500 hover:bg-cyan-600 text-white"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Package
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {packages.map((pkg) => (
+                    <Card key={pkg.id} className="hover:shadow-lg transition-shadow">
+                      <CardHeader>
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <CardTitle className="text-lg">{pkg.name}</CardTitle>
+                            <Badge className="mt-2 bg-cyan-100 text-cyan-800">
+                              ${pkg.price_usd}
+                            </Badge>
+                          </div>
+                          <div className="flex space-x-2">
+                            <Button variant="outline" size="sm">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="outline" size="sm">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-gray-600 mb-4">{pkg.description}</p>
+                        <div className="space-y-2">
+                          <div className="flex items-center text-sm text-gray-500">
+                            <Clock className="h-4 w-4 mr-2" />
+                            {pkg.duration_days} days
+                          </div>
+                          <div className="flex items-center text-sm text-gray-500">
+                            <DollarSign className="h-4 w-4 mr-2" />
+                            ${pkg.price_usd} USD
+                          </div>
+                        </div>
+                        {pkg.procedures_included && (
+                          <div className="mt-4">
+                            <p className="text-sm font-medium text-gray-700 mb-2">Procedures:</p>
+                            <div className="flex flex-wrap gap-1">
+                              {pkg.procedures_included.map((procedure, index) => (
+                                <Badge key={index} variant="secondary" className="text-xs">
+                                  {procedure}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+
+              {/* Create Package Modal */}
+              {showCreatePackage && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                  <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-screen overflow-y-auto">
+                    <h3 className="text-xl font-bold mb-4">Create New Package</h3>
+                    <form onSubmit={createPackage} className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Package Name
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={newPackage.name}
+                          onChange={(e) => setNewPackage({...newPackage, name: e.target.value})}
+                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-cyan-500"
+                          placeholder="e.g., Complete Smile Makeover"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Description
+                        </label>
+                        <textarea
+                          required
+                          value={newPackage.description}
+                          onChange={(e) => setNewPackage({...newPackage, description: e.target.value})}
+                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-cyan-500"
+                          rows="3"
+                          placeholder="Describe what this package includes..."
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Procedures Included (comma-separated)
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={newPackage.procedures_included}
+                          onChange={(e) => setNewPackage({...newPackage, procedures_included: e.target.value})}
+                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-cyan-500"
+                          placeholder="e.g., Dental Cleaning, Whitening, Veneers"
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Price (USD)
+                          </label>
+                          <input
+                            type="number"
+                            required
+                            step="0.01"
+                            value={newPackage.price_usd}
+                            onChange={(e) => setNewPackage({...newPackage, price_usd: e.target.value})}
+                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-cyan-500"
+                            placeholder="1200.00"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Duration (days)
+                          </label>
+                          <input
+                            type="number"
+                            value={newPackage.duration_days}
+                            onChange={(e) => setNewPackage({...newPackage, duration_days: e.target.value})}
+                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-cyan-500"
+                            placeholder="7"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="flex space-x-4">
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={newPackage.includes_accommodation}
+                            onChange={(e) => setNewPackage({...newPackage, includes_accommodation: e.target.checked})}
+                            className="mr-2"
+                          />
+                          Includes Accommodation
+                        </label>
+                        
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={newPackage.includes_transportation}
+                            onChange={(e) => setNewPackage({...newPackage, includes_transportation: e.target.checked})}
+                            className="mr-2"
+                          />
+                          Includes Transportation
+                        </label>
+                      </div>
+                      
+                      <div className="flex justify-end space-x-3 pt-4">
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          onClick={() => setShowCreatePackage(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <Button 
+                          type="submit" 
+                          className="bg-cyan-500 hover:bg-cyan-600 text-white"
+                        >
+                          Create Package
+                        </Button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+            </div>
           </TabsContent>
 
           <TabsContent value="notifications" className="mt-6">
