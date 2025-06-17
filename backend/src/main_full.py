@@ -127,6 +127,13 @@ def seed_default_procedures():
         db.session.rollback()
         print(f"Error seeding default procedures: {e}")
 
+# TEMPORARY: Remove the SQLite DB file on startup if it exists (for Render free tier DB reset)
+if not os.environ.get('DATABASE_URL'):
+    db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'instance', 'dental_tourism.db')
+    if os.path.exists(db_path):
+        print(f"Deleting existing SQLite DB at {db_path} for schema reset...")
+        os.remove(db_path)
+
 # Create tables within app context
 with app.app_context():
     print("Attempting to create database tables...")
