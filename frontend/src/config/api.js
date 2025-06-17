@@ -134,6 +134,7 @@ export const API_ENDPOINTS = {
   HEALTH: `${API_BASE_URL}/api/health`,
 };
 
+<<<<<<< HEAD
 // Debug log the actual endpoints being constructed
 if (typeof console !== 'undefined') {
   console.log('🔗 API Endpoints Debug:', {
@@ -143,4 +144,6 @@ if (typeof console !== 'undefined') {
   });
 }
 
+=======
+>>>>>>> 4fcab4c1 (Feature: Procedures as dropdown for packages, backend/frontend sync, default seeding, and bugfixes)
 export default API_BASE_URL;
