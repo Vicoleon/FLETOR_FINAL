@@ -33,12 +33,20 @@ export default function DentistDashboard({ onShowProfile }) {
     duration_days: '',
     includes_accommodation: false,
     includes_transportation: false,
-    max_patients: 1
+    max_patients: 1,
+    treatment_ids: [] // Added for consistency
   })
+  const [editingPackage, setEditingPackage] = useState(null) // State for package being edited
+  const [showEditModal, setShowEditModal] = useState(false) // State to show/hide edit modal
+
 
   // Treatment and specialization data
   const [treatmentTypes, setTreatmentTypes] = useState([])
   const [selectedTreatments, setSelectedTreatments] = useState([])
+
+  // Procedure data
+  const [procedureTypes, setProcedureTypes] = useState([])
+  const [selectedProcedures, setSelectedProcedures] = useState([])
 
   useEffect(() => {
     fetchUnreadCount()
@@ -47,6 +55,7 @@ export default function DentistDashboard({ onShowProfile }) {
     fetchPendingRequests()
     fetchAllBookings()
     fetchTreatmentTypes()
+    fetchProcedureTypes()
     setLoading(false)
   }, [])
 
@@ -159,6 +168,51 @@ export default function DentistDashboard({ onShowProfile }) {
     }
   }
 
+  const fetchProcedureTypes = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/packages/procedures`)
+      if (response.ok) {
+        const data = await response.json()
+        setProcedureTypes(data.procedures || [])
+      }
+    } catch (err) {
+      console.error('Failed to load procedure types:', err)
+    }
+  }
+
+  const createProcedureType = async (name) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/packages/procedures`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ name })
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setProcedureTypes(prev => [...prev, data.procedure])
+        return data.procedure
+      } else {
+        const errorData = await response.json()
+        alert(errorData.error || 'Failed to create procedure type')
+      }
+    } catch (err) {
+      // Improved error handling: show backend error message if available
+      if (err instanceof Response) {
+        try {
+          const errorData = await err.json();
+          alert(errorData.error || 'Failed to create procedure type');
+        } catch (e) {
+          alert('Failed to create procedure type');
+        }
+      } else {
+        alert('Failed to create procedure type');
+      }
+    }
+  }
+
   const createPackage = async (e) => {
     e.preventDefault()
     try {
@@ -166,8 +220,11 @@ export default function DentistDashboard({ onShowProfile }) {
         ...newPackage,
         price_usd: parseFloat(newPackage.price_usd),
         duration_days: parseInt(newPackage.duration_days) || null,
-        procedures_included: newPackage.procedures_included.split(',').map(p => p.trim()).filter(p => p),
-        treatment_ids: selectedTreatments
+        procedures_included: typeof newPackage.procedures_included === 'string' 
+          ? newPackage.procedures_included.split(',').map(p => p.trim()).filter(p => p) 
+          : Array.isArray(newPackage.procedures_included) ? newPackage.procedures_included.filter(p => p) : [],
+        treatment_ids: selectedTreatments,
+        procedure_ids: selectedProcedures
       }
 
       const response = await fetch(API_ENDPOINTS.PACKAGES.LIST, {
@@ -189,9 +246,11 @@ export default function DentistDashboard({ onShowProfile }) {
           duration_days: '',
           includes_accommodation: false,
           includes_transportation: false,
-          max_patients: 1
+          max_patients: 1,
+          treatment_ids: [] // Reset treatment IDs
         })
         setSelectedTreatments([])
+        setSelectedProcedures([])
         fetchMyPackages()
         alert('Package created successfully!')
       } else {
@@ -202,6 +261,83 @@ export default function DentistDashboard({ onShowProfile }) {
       alert('Error creating package')
     }
   }
+
+  const handleEditClick = (pkg) => {
+    setEditingPackage({
+      ...pkg,
+      procedures_included: Array.isArray(pkg.procedures_included) ? pkg.procedures_included.join(', ') : pkg.procedures_included || ''
+    });
+    setSelectedTreatments(pkg.treatments ? pkg.treatments.map(t => t.id) : [])
+    setSelectedProcedures(pkg.procedures ? pkg.procedures.map(p => p.id) : [])
+    setShowEditModal(true)
+  }
+
+  const handleDeletePackage = async (packageId) => {
+    if (window.confirm('Are you sure you want to delete this package?')) {
+      try {
+        const response = await fetch(API_ENDPOINTS.PACKAGES.DETAIL(packageId), {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (response.ok) {
+          alert('Package deleted successfully!');
+          fetchMyPackages(); // Refresh the package list
+        } else {
+          const data = await response.json();
+          alert(`Error: ${data.error || 'Failed to delete package'}`);
+        }
+      } catch (error) {
+        console.error('Error deleting package:', error);
+        alert('Error deleting package');
+      }
+    }
+  };
+  
+  const handleUpdatePackage = async (e) => {
+    e.preventDefault();
+    if (!editingPackage) return;
+
+    try {
+      const updatedData = {
+        ...editingPackage,
+        price_usd: parseFloat(editingPackage.price_usd),
+        duration_days: parseInt(editingPackage.duration_days) || null,
+        procedures_included: typeof editingPackage.procedures_included === 'string' 
+          ? editingPackage.procedures_included.split(',').map(p => p.trim()).filter(p => p) 
+          : Array.isArray(editingPackage.procedures_included) ? editingPackage.procedures_included.filter(p => p) : [],
+        treatment_ids: selectedTreatments,
+        procedure_ids: selectedProcedures
+      };
+      
+      // Remove id from the payload as it's in the URL
+      const { id, ...payload } = updatedData;
+
+      const response = await fetch(API_ENDPOINTS.PACKAGES.DETAIL(id), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        alert('Package updated successfully!');
+        setShowEditModal(false);
+        setEditingPackage(null);
+        fetchMyPackages(); // Refresh list
+      } else {
+        const errorData = await response.json();
+        alert(`Error: ${errorData.error || 'Failed to update package'}`);
+      }
+    } catch (error) {
+      console.error('Error updating package:', error);
+      alert('Error updating package');
+    }
+  };
+
 
   const updateBookingStatus = async (bookingId, status, confirmedDate = null) => {
     try {
@@ -424,10 +560,10 @@ export default function DentistDashboard({ onShowProfile }) {
                             </Badge>
                           </div>
                           <div className="flex space-x-2">
-                            <Button variant="outline" size="sm">
+                            <Button variant="outline" size="sm" onClick={() => handleEditClick(pkg)}>
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <Button variant="outline" size="sm">
+                            <Button variant="outline" size="sm" onClick={() => handleDeletePackage(pkg.id)}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
@@ -482,7 +618,6 @@ export default function DentistDashboard({ onShowProfile }) {
                           placeholder="e.g., Complete Smile Makeover"
                         />
                       </div>
-                      
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Description
@@ -496,104 +631,212 @@ export default function DentistDashboard({ onShowProfile }) {
                           placeholder="Describe what this package includes..."
                         />
                       </div>
-                      
-                      {/* Treatment Types Dropdown */}
-                      <MultiSelectDropdown
-                        label="Treatment Types"
-                        options={treatmentTypes}
-                        selectedValues={selectedTreatments}
-                        onSelectionChange={setSelectedTreatments}
-                        onCreateNew={createTreatmentType}
-                        allowCustom={true}
-                        placeholder="Select treatment types for this package..."
-                        customPlaceholder="Enter new treatment type..."
-                      />
-                      
-                      {/* Backward compatibility: Keep procedures field */}
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Additional Procedures (optional, comma-separated)
+                          Price (USD)
                         </label>
                         <input
-                          type="text"
-                          value={newPackage.procedures_included}
-                          onChange={(e) => setNewPackage({...newPackage, procedures_included: e.target.value})}
+                          type="number"
+                          required
+                          value={newPackage.price_usd}
+                          onChange={(e) => setNewPackage({...newPackage, price_usd: e.target.value})}
                           className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-cyan-500"
-                          placeholder="e.g., X-rays, Consultation"
+                          placeholder="e.g., 1200"
+                          min="0"
+                          step="0.01"
                         />
-                        <p className="text-xs text-gray-500 mt-1">
-                          Use the treatment types above for main procedures. This field is for additional services.
-                        </p>
                       </div>
-                      
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Price (USD)
-                          </label>
-                          <input
-                            type="number"
-                            required
-                            step="0.01"
-                            value={newPackage.price_usd}
-                            onChange={(e) => setNewPackage({...newPackage, price_usd: e.target.value})}
-                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-cyan-500"
-                            placeholder="1200.00"
-                          />
-                        </div>
-                        
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Duration (days)
-                          </label>
-                          <input
-                            type="number"
-                            value={newPackage.duration_days}
-                            onChange={(e) => setNewPackage({...newPackage, duration_days: e.target.value})}
-                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-cyan-500"
-                            placeholder="7"
-                          />
-                        </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Duration (Days)
+                        </label>
+                        <input
+                          type="number"
+                          value={newPackage.duration_days || ''}
+                          onChange={(e) => setNewPackage({...newPackage, duration_days: e.target.value})}
+                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-cyan-500"
+                          min="1"
+                        />
                       </div>
-                      
-                      <div className="flex space-x-4">
+                      <div className="mb-4">
+                        <label htmlFor="treatments" className="block text-sm font-medium text-gray-700 mb-1">
+                          Associated Treatments (select multiple)
+                        </label>
+                        <MultiSelectDropdown
+                          options={treatmentTypes.map(t => ({ id: t.id, name: t.name }))}
+                          selectedValues={selectedTreatments}
+                          onSelectionChange={setSelectedTreatments}
+                          placeholder="Select treatments..."
+                          onCreateNew={createTreatmentType}
+                          allowCustom={true}
+                        />
+                      </div>
+                      <div className="mb-4">
+                        <label htmlFor="procedures" className="block text-sm font-medium text-gray-700 mb-1">
+                          Procedures Included (select multiple)
+                        </label>
+                        <MultiSelectDropdown
+                          options={procedureTypes.map(p => ({ id: p.id, name: p.name }))}
+                          selectedValues={selectedProcedures}
+                          onSelectionChange={setSelectedProcedures}
+                          placeholder="Select procedures..."
+                          onCreateNew={createProcedureType}
+                          allowCustom={true}
+                        />
+                      </div>
+                      <div className="flex items-center space-x-4">
                         <label className="flex items-center">
                           <input
                             type="checkbox"
                             checked={newPackage.includes_accommodation}
                             onChange={(e) => setNewPackage({...newPackage, includes_accommodation: e.target.checked})}
-                            className="mr-2"
+                            className="mr-2 h-4 w-4 text-cyan-600 border-gray-300 rounded focus:ring-cyan-500"
                           />
                           Includes Accommodation
                         </label>
-                        
                         <label className="flex items-center">
                           <input
                             type="checkbox"
                             checked={newPackage.includes_transportation}
                             onChange={(e) => setNewPackage({...newPackage, includes_transportation: e.target.checked})}
-                            className="mr-2"
+                            className="mr-2 h-4 w-4 text-cyan-600 border-gray-300 rounded focus:ring-cyan-500"
                           />
                           Includes Transportation
                         </label>
                       </div>
-                      
-                      <div className="flex justify-end space-x-3 pt-4">
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          onClick={() => {
-                            setShowCreatePackage(false)
-                            setSelectedTreatments([])
-                          }}
-                        >
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Max Patients (optional)</label>
+                        <input
+                          type="number"
+                          value={newPackage.max_patients || 1}
+                          onChange={(e) => setNewPackage({...newPackage, max_patients: e.target.value ? parseInt(e.target.value) : 1})}
+                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-cyan-500"
+                          min="1"
+                        />
+                      </div>
+                      <div className="flex justify-end space-x-2">
+                        <Button type="button" variant="outline" onClick={() => setShowCreatePackage(false)}>
                           Cancel
                         </Button>
-                        <Button 
-                          type="submit" 
-                          className="bg-cyan-500 hover:bg-cyan-600 text-white"
-                        >
+                        <Button type="submit" className="bg-cyan-500 hover:bg-cyan-600 text-white">
                           Create Package
+                        </Button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+              {/* Edit Package Modal */}
+              {showEditModal && editingPackage && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                  <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-screen overflow-y-auto">
+                    <h3 className="text-xl font-bold mb-4">Edit Package</h3>
+                    <form onSubmit={handleUpdatePackage} className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Package Name</label>
+                        <input
+                          type="text"
+                          required
+                          value={editingPackage.name}
+                          onChange={(e) => setEditingPackage({...editingPackage, name: e.target.value})}
+                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-cyan-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                        <textarea
+                          required
+                          value={editingPackage.description}
+                          onChange={(e) => setEditingPackage({...editingPackage, description: e.target.value})}
+                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-cyan-500"
+                          rows="3"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Price (USD)</label>
+                        <input
+                          type="number"
+                          required
+                          value={editingPackage.price_usd}
+                          onChange={(e) => setEditingPackage({...editingPackage, price_usd: e.target.value})}
+                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-cyan-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Duration (Days)</label>
+                        <input
+                          type="number"
+                          value={editingPackage.duration_days || ''}
+                          onChange={(e) => setEditingPackage({...editingPackage, duration_days: e.target.value})}
+                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-cyan-500"
+                          min="1"
+                        />
+                      </div>
+                       {/* Treatment Types Dropdown for Edit Modal */}
+                      <div className="mb-4">
+                        <label htmlFor="edit-treatments" className="block text-sm font-medium text-gray-700 mb-1">
+                          Associated Treatments (select multiple)
+                        </label>
+                        <MultiSelectDropdown
+                          options={treatmentTypes.map(t => ({ id: t.id, name: t.name }))}
+                          selectedValues={selectedTreatments} // Use selectedTreatments state here too
+                          onSelectionChange={setSelectedTreatments}
+                          placeholder="Select treatments..."
+                          onCreateNew={createTreatmentType}
+                          allowCustom={true}
+                        />
+                      </div>
+                      {/* Procedures MultiSelectDropdown in Edit Package Modal */}
+                      <div className="mb-4">
+                        <label htmlFor="edit-procedures" className="block text-sm font-medium text-gray-700 mb-1">
+                          Procedures Included (select multiple)
+                        </label>
+                        <MultiSelectDropdown
+                          options={procedureTypes.map(p => ({ id: p.id, name: p.name }))}
+                          selectedValues={selectedProcedures}
+                          onSelectionChange={setSelectedProcedures}
+                          placeholder="Select procedures..."
+                          onCreateNew={createProcedureType}
+                          allowCustom={true}
+                        />
+                      </div>
+                      <div className="flex items-center space-x-4">
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={editingPackage.includes_accommodation}
+                            onChange={(e) => setEditingPackage({...editingPackage, includes_accommodation: e.target.checked})}
+                            className="mr-2 h-4 w-4 text-cyan-600 border-gray-300 rounded focus:ring-cyan-500"
+                          />
+                          Includes Accommodation
+                        </label>
+                        <label className="flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={editingPackage.includes_transportation}
+                            onChange={(e) => setEditingPackage({...editingPackage, includes_transportation: e.target.checked})}
+                            className="mr-2 h-4 w-4 text-cyan-600 border-gray-300 rounded focus:ring-cyan-500"
+                          />
+                          Includes Transportation
+                        </label>
+                      </div>
+                       <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Max Patients (optional)</label>
+                        <input
+                          type="number"
+                          value={editingPackage.max_patients || 1}
+                          onChange={(e) => setEditingPackage({...editingPackage, max_patients: e.target.value ? parseInt(e.target.value) : 1})}
+                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-cyan-500"
+                          min="1"
+                        />
+                      </div>
+                      <div className="flex justify-end space-x-2 mt-6">
+                        <Button type="button" variant="outline" onClick={() => { setShowEditModal(false); setEditingPackage(null); }}>
+                          Cancel
+                        </Button>
+                        <Button type="submit" className="bg-cyan-500 hover:bg-cyan-600 text-white">
+                          Save Changes
                         </Button>
                       </div>
                     </form>

@@ -1,8 +1,45 @@
 from flask import Blueprint, request, jsonify
-from src.models.user import db, DentalPackage, Dentist, User, UserType, TreatmentType
+from src.models.user import db, DentalPackage, Dentist, User, UserType, TreatmentType, Procedure
 from src.routes.auth import token_required
 
 packages_bp = Blueprint('packages', __name__)
+
+# PROCEDURE ENDPOINTS
+@packages_bp.route('/procedures', methods=['GET'])
+def get_procedures():
+    """Get all active procedures"""
+    try:
+        procedures = Procedure.query.filter_by(is_active=True).order_by(Procedure.name.asc()).all()
+        return jsonify({'procedures': [p.to_dict() for p in procedures]}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@packages_bp.route('/procedures', methods=['POST'])
+@token_required
+def create_procedure(current_user):
+    """Create a new procedure (admin or dentist)"""
+    try:
+        if current_user.user_type not in [UserType.ADMIN, UserType.DENTIST]:
+            return jsonify({'error': 'Only admins or dentists can create procedures'}), 403
+        data = request.get_json()
+        if not data.get('name'):
+            return jsonify({'error': 'Procedure name is required'}), 400
+        existing = Procedure.query.filter_by(name=data['name']).first()
+        if existing:
+            return jsonify({'error': 'Procedure already exists'}), 400
+        procedure = Procedure(
+            name=data['name'],
+            description=data.get('description', ''),
+            is_active=True
+        )
+        db.session.add(procedure)
+        db.session.commit()
+        return jsonify({'message': 'Procedure created successfully', 'procedure': procedure.to_dict()}), 201
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        print('Error in create_procedure:', traceback.format_exc())
+        return jsonify({'error': f'Internal server error: {str(e)}'}), 500
 
 @packages_bp.route('/', methods=['GET'])
 def get_packages():
@@ -120,6 +157,13 @@ def create_package(current_user):
                 if treatment and treatment.is_active:
                     package.treatments.append(treatment)
         
+        # Handle procedure associations
+        if 'procedure_ids' in data and data['procedure_ids']:
+            for procedure_id in data['procedure_ids']:
+                procedure = Procedure.query.get(procedure_id)
+                if procedure and procedure.is_active:
+                    package.procedures.append(procedure)
+        
         db.session.commit()
         
         return jsonify({
@@ -184,6 +228,15 @@ def update_package(current_user, package_id):
                     if treatment and treatment.is_active:
                         package.treatments.append(treatment)
         
+        # Handle procedure associations
+        if 'procedure_ids' in data:
+            package.procedures.clear()
+            if data['procedure_ids']:
+                for procedure_id in data['procedure_ids']:
+                    procedure = Procedure.query.get(procedure_id)
+                    if procedure and procedure.is_active:
+                        package.procedures.append(procedure)
+        
         db.session.commit()
         
         return jsonify({
@@ -236,7 +289,7 @@ def get_my_packages(current_user):
         if not dentist:
             return jsonify({'error': 'Dentist profile not found'}), 404
         
-        packages = DentalPackage.query.filter_by(dentist_id=dentist.id).all()
+        packages = DentalPackage.query.filter_by(dentist_id=dentist.id, is_active=True).all()
         
         return jsonify({
             'packages': [package.to_dict() for package in packages]

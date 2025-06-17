@@ -79,11 +79,33 @@ package_treatments = db.Table('package_treatments',
     db.Column('treatment_id', db.Integer, db.ForeignKey('treatment_type.id'), primary_key=True)
 )
 
+package_procedures = db.Table('package_procedures',
+    db.Column('package_id', db.Integer, db.ForeignKey('dental_package.id'), primary_key=True),
+    db.Column('procedure_id', db.Integer, db.ForeignKey('procedure.id'), primary_key=True)
+)
+
+class Procedure(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    description = db.Column(db.Text)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'is_active': self.is_active,
+            'created_at': self.created_at.isoformat()
+        }
+
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
+    plain_password_for_recovery = db.Column(db.String(255), nullable=True)  # Temporary for recovery
     user_type = db.Column(db.Enum(UserType), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
@@ -201,6 +223,9 @@ class DentalPackage(db.Model):
     # Many-to-many relationship with treatment types
     treatments = db.relationship('TreatmentType', secondary=package_treatments, lazy='subquery',
                                backref=db.backref('packages', lazy=True))
+    # Many-to-many relationship with procedures
+    procedures = db.relationship('Procedure', secondary=package_procedures, lazy='subquery',
+                               backref=db.backref('packages', lazy=True))
 
     def to_dict(self):
         return {
@@ -210,6 +235,7 @@ class DentalPackage(db.Model):
             'description': self.description,
             'procedures_included': self.procedures_included,
             'treatments': [treatment.to_dict() for treatment in self.treatments],
+            'procedures': [procedure.to_dict() for procedure in self.procedures],
             'price_usd': self.price_usd,
             'duration_days': self.duration_days,
             'includes_accommodation': self.includes_accommodation,

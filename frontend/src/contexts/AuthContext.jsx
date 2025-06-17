@@ -13,8 +13,9 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
-  const [token, setToken] = useState(localStorage.getItem('token'))
   const [loading, setLoading] = useState(true)
+  const [token, setToken] = useState(localStorage.getItem('token'))
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
   useEffect(() => {
     if (token) {
@@ -103,46 +104,63 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (userData) => {
     try {
-      // Add defensive programming for browser extension conflicts
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
-      
-      const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+      const response = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(userData),
-        signal: controller.signal
-      })
-
-      clearTimeout(timeoutId)
-      const data = await response.json()
-
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userData)
+      });
+      const data = await response.json();
       if (response.ok) {
-        const token = data.access_token || data.token
-        setToken(token)
-        setUser(data.user)
-        localStorage.setItem('token', token)
-        return { success: true }
+        localStorage.setItem('token', data.access_token);
+        setToken(data.access_token);
+        setUser(data.user);
+        return { success: true, user: data.user };
       } else {
-        return { success: false, error: data.error }
+        return { success: false, error: data.error || 'Registration failed' };
       }
     } catch (error) {
-      // Handle browser extension conflicts and network errors gracefully
-      if (error.name === 'AbortError') {
-        return { success: false, error: 'Request timeout - please try again' }
-      }
-      
-      // Check if error is related to browser extensions
-      if (error.message && error.message.includes('message channel')) {
-        return { success: false, error: 'Browser extension conflict detected. Please try disabling extensions or use incognito mode.' }
-      }
-      
-      console.error('Registration error:', error)
-      return { success: false, error: 'Network error - please check your connection and try again' }
+      console.error("Registration error:", error);
+      return { success: false, error: 'An unexpected error occurred.' };
     }
-  }
+  };
+
+  const recoverPasswordOnScreen = async (email) => {
+    try {
+      const response = await fetch(`${API_URL}/auth/recover-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        return { success: true, recovered_password: data.recovered_password, message: data.message };
+      } else {
+        return { success: false, error: data.error || 'Password recovery failed' };
+      }
+    } catch (error) {
+      console.error("Password recovery error:", error);
+      return { success: false, error: 'An unexpected error occurred during password recovery.' };
+    }
+  };
+
+  const resetPasswordOnScreen = async (email, new_password) => {
+    try {
+      const response = await fetch(`${API_URL}/auth/reset-password-on-screen`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, new_password })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        return { success: true, message: data.message };
+      } else {
+        return { success: false, error: data.error || 'Password reset failed' };
+      }
+    } catch (error) {
+      console.error("Password reset error:", error);
+      return { success: false, error: 'An unexpected error occurred during password reset.' };
+    }
+  };
 
   const logout = () => {
     setUser(null)
@@ -182,6 +200,8 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     updateProfile,
+    recoverPasswordOnScreen,
+    resetPasswordOnScreen,
     API_BASE_URL
   }
 

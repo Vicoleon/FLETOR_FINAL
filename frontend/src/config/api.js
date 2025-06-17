@@ -85,6 +85,7 @@ export const API_ENDPOINTS = {
   PACKAGES: {
     LIST: `${API_BASE_URL}/api/packages/`,
     MY_PACKAGES: `${API_BASE_URL}/api/packages/my-packages`,
+    DETAIL: (id) => `${API_BASE_URL}/api/packages/${id}`,
   },
   
   // Booking endpoints
@@ -142,4 +143,4 @@ if (typeof console !== 'undefined') {
   });
 }
 
-export default API_BASE_URL; 
+export default API_BASE_URL;
