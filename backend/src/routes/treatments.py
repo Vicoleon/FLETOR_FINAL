@@ -46,7 +46,7 @@ def create_treatment_type(current_user):
             name=data['name'],
             description=data.get('description', ''),
             is_system_default=False,  # User-created treatments are not system defaults
-            created_by_user_id=current_user.id
+            created_by=current_user.id # Changed from created_by_user_id
         )
         
         db.session.add(treatment)
@@ -72,7 +72,7 @@ def update_treatment_type(current_user, treatment_id):
         
         # Only allow creator or admin to update
         if (current_user.user_type != UserType.ADMIN and 
-            treatment.created_by_user_id != current_user.id):
+            treatment.created_by != current_user.id): # Changed from treatment.created_by_user_id
             return jsonify({'error': 'Permission denied'}), 403
         
         # System defaults can only be updated by admins
@@ -119,7 +119,7 @@ def delete_treatment_type(current_user, treatment_id):
         
         # Only allow creator or admin to delete
         if (current_user.user_type != UserType.ADMIN and 
-            treatment.created_by_user_id != current_user.id):
+            treatment.created_by != current_user.id): # Changed from treatment.created_by_user_id
             return jsonify({'error': 'Permission denied'}), 403
         
         # System defaults cannot be deleted
@@ -345,4 +345,4 @@ def populate_default_data(current_user):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500 
+        return jsonify({'error': str(e)}), 500
