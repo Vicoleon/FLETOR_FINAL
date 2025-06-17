@@ -127,13 +127,6 @@ def seed_default_procedures():
         db.session.rollback()
         print(f"Error seeding default procedures: {e}")
 
-# TEMPORARY: Remove the SQLite DB file on startup if it exists (for Render free tier DB reset)
-if not os.environ.get('DATABASE_URL'):
-    db_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'instance', 'dental_tourism.db')
-    if os.path.exists(db_path):
-        print(f"Deleting existing SQLite DB at {db_path} for schema reset...")
-        os.remove(db_path)
-
 # Create tables within app context
 with app.app_context():
     print("Attempting to create database tables...")
@@ -142,22 +135,6 @@ with app.app_context():
     print("db.create_all() executed.")
     seed_default_treatments() # ADDED CALL TO SEEDER
     seed_default_procedures()
-
-    # Check schema after creation
-    try:
-        inspector = inspect(db.engine)
-        if inspector.has_table("user"):
-            columns = inspector.get_columns('user')
-            column_names = [c['name'] for c in columns]
-            print(f"Columns found in 'user' table: {column_names}")
-            if 'plain_password_for_recovery' in column_names:
-                print("SUCCESS: Column 'plain_password_for_recovery' FOUND in 'user' table after create_all.")
-            else:
-                print("FAILURE: Column 'plain_password_for_recovery' NOT FOUND in 'user' table after create_all.")
-        else:
-            print("FAILURE: Table 'user' NOT FOUND after create_all.")
-    except Exception as e:
-        print(f"Error during schema inspection: {e}")
 
     # Verify database file existence if SQLite
     if app.config['SQLALCHEMY_DATABASE_URI'].startswith('sqlite:///') and db_file_path:

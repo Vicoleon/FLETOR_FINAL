@@ -105,7 +105,6 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
-    plain_password_for_recovery = db.Column(db.String(255), nullable=True)  # Temporary for recovery
     user_type = db.Column(db.Enum(UserType), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True)
