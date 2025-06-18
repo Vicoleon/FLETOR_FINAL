@@ -130,6 +130,16 @@ export const API_ENDPOINTS = {
     ANALYTICS_REVENUE: `${API_BASE_URL}/api/admin/analytics/revenue`,
   },
   
+  // Reviews endpoints
+  REVIEWS: {
+    CREATE: `${API_BASE_URL}/api/reviews/create`,
+    DENTIST: `${API_BASE_URL}/api/reviews/dentist`,
+    PENDING: `${API_BASE_URL}/api/reviews/pending`,
+    MODERATE: `${API_BASE_URL}/api/reviews`,
+    RESPOND: `${API_BASE_URL}/api/reviews`,
+    STATS: `${API_BASE_URL}/api/reviews/stats`
+  },
+  
   // Health check
   HEALTH: `${API_BASE_URL}/api/health`,
 };

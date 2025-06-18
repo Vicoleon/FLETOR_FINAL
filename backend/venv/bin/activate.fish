@@ -30,7 +30,7 @@ end
 # Unset irrelevant variables.
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV "/Users/joseleonsalgado/Documents/Mirror/Mirror/Consultoria/OdontoWeb_Turismo/OdontoWeb_Turism/backend/venv"
+set -gx VIRTUAL_ENV "/home/ubuntu/OdontoTravel/backend/venv"
 
 set -gx _OLD_VIRTUAL_PATH $PATH
 set -gx PATH "$VIRTUAL_ENV/bin" $PATH

@@ -13,7 +13,7 @@ from src.routes.packages import packages_bp
 from src.routes.bookings import bookings_bp
 from src.routes.notifications import notifications_bp
 from src.routes.admin import admin_bp
-from src.routes.treatments import treatments_bp
+from src.routes.reviews import reviews_bp
 from src.models.user import TreatmentType # ADDED IMPORT
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
@@ -41,7 +41,7 @@ app.register_blueprint(packages_bp, url_prefix='/api/packages')
 app.register_blueprint(bookings_bp, url_prefix='/api/bookings')
 app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
 app.register_blueprint(admin_bp, url_prefix='/api/admin')
-app.register_blueprint(treatments_bp, url_prefix='/api/treatments')
+app.register_blueprint(reviews_bp, url_prefix='/api/reviews')
 
 # Enable database functionality - environment-aware
 db_file_path = None # Initialize db_file_path

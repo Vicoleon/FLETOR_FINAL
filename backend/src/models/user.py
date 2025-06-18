@@ -321,9 +321,21 @@ class Review(db.Model):
     comment = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
+    # Moderation fields
+    is_moderated = db.Column(db.Boolean, default=False)
+    is_approved = db.Column(db.Boolean, default=False)
+    admin_notes = db.Column(db.Text)
+    moderated_at = db.Column(db.DateTime)
+    moderated_by = db.Column(db.Integer, db.ForeignKey('user.id'))
+    
+    # Dentist response
+    dentist_response = db.Column(db.Text)
+    response_date = db.Column(db.DateTime)
+    
     patient_rel = db.relationship('Patient', backref='reviews_given')
     dentist_rel = db.relationship('Dentist', backref='reviews_received')
     booking_rel = db.relationship('Booking', backref=db.backref('review', uselist=False))
+    moderator = db.relationship('User', foreign_keys=[moderated_by])
 
     def to_dict(self):
         return {
@@ -333,7 +345,14 @@ class Review(db.Model):
             'booking_id': self.booking_id,
             'rating': self.rating,
             'comment': self.comment,
-            'created_at': self.created_at.isoformat()
+            'created_at': self.created_at.isoformat(),
+            'is_moderated': self.is_moderated,
+            'is_approved': self.is_approved,
+            'admin_notes': self.admin_notes,
+            'moderated_at': self.moderated_at.isoformat() if self.moderated_at else None,
+            'moderated_by': self.moderated_by,
+            'dentist_response': self.dentist_response,
+            'response_date': self.response_date.isoformat() if self.response_date else None
         }
 
 
