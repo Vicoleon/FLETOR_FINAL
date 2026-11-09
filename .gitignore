@@ -74,3 +74,7 @@ venv.bak/
 *.temp
 .tmp/
 .temp/ 
+
+# Local-only folders (accidentally committed once)
+Documents/
+.claude/settings.local.json
